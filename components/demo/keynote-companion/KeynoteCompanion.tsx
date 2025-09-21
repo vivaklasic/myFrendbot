@@ -51,7 +51,7 @@ export default function KeynoteCompanion() {
       </summary>
       <div className="info-text">
         <p>
-          Experimental model from Google DeepMind. Speaks many languages. On iOS, disable AVR.
+          Experimental model from Google DeepMind. Adapted for the service. Speaks many languages. On iOS, disable AVR.
         </p>
       </div>
     </details>
