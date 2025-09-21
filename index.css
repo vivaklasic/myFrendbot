@@ -65,9 +65,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* Свойства для нашего фона */
+  
   background-image: url('https://i.ibb.co/qLqMSKPH/BACKGbot5.jpg');
-  background-color: #000; /* Цвет-подложка, если картинка не загрузится */
+  background-color: #255c05 
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
