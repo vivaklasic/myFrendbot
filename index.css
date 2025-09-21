@@ -954,30 +954,82 @@ input[type='range'] {
   aspect-ratio: 1 / 1;
 }
 
+/*
+=========================================
+=== СТИЛИ ДЛЯ ВЫПАДАЮЩЕЙ ИНФОРМАЦИИ ===
+=========================================
+*/
 
-/* ================================================= */
-/* === ВСЕ МОБИЛЬНЫЕ СТИЛИ В ОДНОМ МЕСТЕ === */
-/* ================================================= */
+/* Делаем родителя точкой отсчета для позиционирования кнопки */
+.keynote-companion {
+  position: relative;
+}
+
+/* Стили для самой кнопки и текста */
+.info-overlay {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 10;
+}
+.info-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  cursor: pointer;
+  list-style: none; /* Убирает маркер-стрелку */
+}
+.info-button::-webkit-details-marker {
+  display: none; /* И еще раз для Safari */
+}
+.info-button .icon {
+  color: white;
+}
+.info-text {
+  /* Сначала текст скрыт */
+  display: none; 
+  
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 250px;
+  padding: 15px;
+  background-color: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  color: var(--text);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* Показываем текст, когда details открыт */
+.info-overlay[open] .info-text {
+  display: block;
+}
+
 @media (max-width: 768px), (max-height: 500px) {
   
-  /* --- Стили для фона и общих контейнеров --- */
+  
   .streaming-console {
     overflow: hidden;
   }
   .main-app-area {
     padding-bottom: 80px;
-    /* ШАГ 1: Даем родителю пространство для роста ТОЛЬКО на мобильных */
+    
     width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
   }
   body {
-    background-image: url('https://i.ibb.co/V0RjNgsK/bot-MYdialog.jpg'); /* <-- Не забудьте URL */
+    background-image: url('https://i.ibb.co/V0RjNgsK/bot-MYdialog.jpg'); 
     background-attachment: scroll; 
   }
 
-  /* --- Стили для панели управления --- */
+ 
   .control-tray {
     width: 100%;
     left: 50%;
@@ -986,16 +1038,11 @@ input[type='range'] {
     padding-bottom: 100px;
   }
 
-  /* --- ШАГ 2: Стили для самого бота ТОЛЬКО на мобильных --- */
+  
   .basic-face {
-    /* В вертикальном режиме он займет 90% ширины экрана */
     width: 90%;
-    
-    /* А в низком горизонтальном режиме его размер будет ограничен высотой экрана */
     max-width: 65vh;
     max-height: 65vh;
-    
-    /* И он всегда будет оставаться квадратным */
     aspect-ratio: 1 / 1;
   }
 }
