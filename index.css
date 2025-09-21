@@ -950,8 +950,7 @@ input[type='range'] {
 
 
 .basic-face {
-  max-width: 40vh;
-  max-height: 40vh;
+  max-width: 80%;
   aspect-ratio: 1 / 1;
 }
 
