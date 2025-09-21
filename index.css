@@ -965,6 +965,11 @@ input[type='range'] {
   .main-app-area {
     padding-bottom: 80px;
   }
+
+  body {
+    /* Отключаем "прилипание" фона на мобильных */
+    background-attachment: scroll; 
+  }
   .control-tray {
     width: 100%;
     left: 50%;
