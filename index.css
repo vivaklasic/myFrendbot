@@ -950,10 +950,8 @@ input[type='range'] {
 
 
 .basic-face {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 300px !important;
-  max-height: 300px !important;
+  width: 90%; /* Занимает 90% от родительского контейнера */
+  max-width: 600px;
   aspect-ratio: 1 / 1;
 }
 
