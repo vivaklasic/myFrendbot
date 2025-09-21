@@ -42,6 +42,17 @@ export default function KeynoteCompanion() {
   return (
     <div className="keynote-companion">
       <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
+      <details className="info-overlay">
+  <summary className="info-button">
+    <span className="icon">info</span>
+  </summary>
+  <div className="info-text">
+    <p>
+      Привет! Я ваш персональный ИИ-ассистент.
+      Нажмите на микрофон, чтобы задать вопрос голосом.
+    </p>
+  </div>
+</details>
     </div>
   );
 }
