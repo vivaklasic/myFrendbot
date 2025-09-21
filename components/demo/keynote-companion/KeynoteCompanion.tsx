@@ -51,8 +51,7 @@ export default function KeynoteCompanion() {
       </summary>
       <div className="info-text">
         <p>
-          Привет! Я ваш персональный ИИ-ассистент.
-          Нажмите на микрофон, чтобы задать вопрос голосом.
+          Experimental model from Google DeepMind. Speaks many languages. On iOS, disable AVR.
         </p>
       </div>
     </details>
