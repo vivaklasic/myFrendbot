@@ -970,11 +970,14 @@ input[type='range'] {
     /* Отключаем "прилипание" фона на мобильных */
     background-attachment: scroll; 
   }
+  @media (max-width: 768px) {
+  
   .control-tray {
     width: 100%;
     left: 50%;
     transform: translateX(-50%) scale(0.9);
-    bottom: 0;
-    padding-bottom: 15px;
+    bottom: calc(15px + env(safe-area-inset-bottom));
+    padding-bottom: 15px; 
   }
+}
 }
