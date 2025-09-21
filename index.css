@@ -961,16 +961,11 @@ input[type='range'] {
 */
 
 /* Делаем родителя точкой отсчета для позиционирования кнопки */
-.keynote-companion {
-  position: relative;
-}
-
-/* Стили для самой кнопки и текста */
 .info-overlay {
   position: absolute;
   top: 15px;
   right: 15px;
-  z-index: 10;
+  z-index: 1000;
 }
 .info-button {
   display: flex;
@@ -981,18 +976,16 @@ input[type='range'] {
   background-color: rgba(0, 0, 0, 0.5);
   border-radius: 50%;
   cursor: pointer;
-  list-style: none; /* Убирает маркер-стрелку */
+  list-style: none;
 }
 .info-button::-webkit-details-marker {
-  display: none; /* И еще раз для Safari */
+  display: none;
 }
 .info-button .icon {
   color: white;
 }
 .info-text {
-  /* Сначала текст скрыт */
   display: none; 
-  
   position: absolute;
   top: 50px;
   right: 0;
@@ -1004,8 +997,6 @@ input[type='range'] {
   color: var(--text);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
 }
-
-/* Показываем текст, когда details открыт */
 .info-overlay[open] .info-text {
   display: block;
 }
