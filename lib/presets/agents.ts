@@ -12,7 +12,7 @@ export const createNewAgent = (properties?: Partial<Agent>): Agent => {
 
 export const Paul: Agent = {
   id: 'guardian-ai', // Новое ID, чтобы было понятнее
-  name: 'SAID', // Новое имя
+  name: 'Ethics', // Новое имя
   bodyColor: '#e6e1da', // Можете выбрать любой цвет, например, синий
   voice: 'Orus', // Можете выбрать любой голос, который кажется подходящим
   personality: `
