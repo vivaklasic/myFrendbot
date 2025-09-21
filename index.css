@@ -940,26 +940,24 @@ input[type='range'] {
   font-size: 24px;
 }
 
-/* Стили для нашего нового, некликабельного заголовка */
+
 .static-title {
   color: white;
-  opacity: 0.8; /* Делаем его чуть менее ярким, чтобы не отвлекал */
-  cursor: default; /* Курсор не будет меняться на "руку" при наведении */
+  opacity: 0.8; 
+  cursor: default; 
 }
 
 
 
 .basic-face {
-  width: 90%; /* Занимает 90% от родительского контейнера */
+  width: 90%; 
   max-width: 600px;
   aspect-ratio: 1 / 1;
 }
 
-/* 
-  Мобильные стили, которые уже работали, оставляем как есть.
-*/
-@media (max-width: 768px) {
-  /* Стили для контейнеров, которые вы уже настроили */
+
+@media (max-width: 768px), (max-height: 500px) {
+ 
   .streaming-console {
     overflow: hidden;
   }
@@ -968,23 +966,20 @@ input[type='range'] {
     padding-bottom: 80px;
   }
 
-  /* Стили для фона и основного тела страницы на мобильных */
+ 
   body {
-    /* === НОВОЕ ПРАВИЛО === */
-    /* Устанавливаем специальный фон для мобильных устройств */
-    background-image: url('https://АДРЕС_ВАШЕГО_МОБИЛЬНОГО_ФОНА.jpg'); /* <-- ЗАМЕНИТЕ ЭТОТ URL */
-
-    /* === ВАЖНОЕ ПРАВИЛО === */
-    /* Это правило убирает "прыжки" фона и белую полосу при прокрутке. Оно должно остаться. */
+    background-image: url('https://АДРЕС_ВАШЕГО_МОБИЛЬНОГО_ФОНА.jpg'); 
     background-attachment: scroll; 
   }
 
-  /* Стили для панели управления */
+ 
   .control-tray {
     width: 100%;
     left: 50%;
     transform: translateX(-50%) scale(0.9);
     bottom: calc(15px + env(safe-area-inset-bottom));
-    padding-bottom: 100px; /* Вы установили большой отступ, я его сохранил */
+    padding-bottom: 100px; 
   }
+
+  
 }
