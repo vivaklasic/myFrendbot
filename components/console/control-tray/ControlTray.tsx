@@ -15,21 +15,21 @@ function ControlTray({ children }: ControlTrayProps) {
   const [muted, setMuted] = useState(false);
   const connectButtonRef = useRef<HTMLButtonElement>(null);
 
+  // === ИЗМЕНЕНИЕ 1: Добавляем функцию-"будильник" для Safari ===
+  const resumeAudioContext = () => {
+    if (audioRecorder && audioRecorder.audioContext.state === 'suspended') {
+      audioRecorder.audioContext.resume();
+    }
+  };
+
   const { showAgentEdit, showUserConfig } = useUI();
   const { client, connected, connect, disconnect } = useLiveAPIContext();
 
-  // Stop the current agent if the user is editing the agent or user config
   useEffect(() => {
     if (showAgentEdit || showUserConfig) {
       if (connected) disconnect();
     }
   }, [showUserConfig, showAgentEdit, connected, disconnect]);
-
-  //useEffect(() => {
-    //if (!connected && connectButtonRef.current) {
-      //connectButtonRef.current.focus();
-   // }
- // }, [connected]);
 
   useEffect(() => {
     const onData = (base64: string) => {
@@ -55,10 +55,11 @@ function ControlTray({ children }: ControlTrayProps) {
       <nav className={cn('actions-nav', { disabled: !connected })}>
         <button
           className={cn('action-button mic-button')}
+          // === ИЗМЕНЕНИЕ 2: Добавляем "будильник" сюда ===
           onClick={() => {
-    resumeAudioContext(); // <--- ДОБАВЛЕНА ЭТА СТРОКА
-    setMuted(!muted);
-  }}
+            resumeAudioContext();
+            setMuted(!muted);
+          }}
         >
           {!muted ? (
             <span className="material-symbols-outlined filled">mic</span>
@@ -74,7 +75,15 @@ function ControlTray({ children }: ControlTrayProps) {
           <button
             ref={connectButtonRef}
             className={cn('action-button connect-toggle', { connected })}
-            onClick={connected ? disconnect : connect}
+            // === ИЗМЕНЕНИЕ 3: И добавляем "будильник" сюда ===
+            onClick={
+              connected
+                ? disconnect
+                : () => {
+                    resumeAudioContext();
+                    connect();
+                  }
+            }
           >
             <span className="material-symbols-outlined filled">
               {connected ? 'pause' : 'play_arrow'}
