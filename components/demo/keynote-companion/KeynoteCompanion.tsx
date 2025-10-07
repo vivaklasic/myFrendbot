@@ -175,11 +175,28 @@ export default function KeynoteCompanion() {
     };
   }, [client, connected]);
 
-return (
+  return (
     <>
       <div className="keynote-companion">
         <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
         
+        {/* Затемнення фону */}
+        {currentImage && (
+          <div
+            onClick={() => setCurrentImage(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              zIndex: 999
+            }}
+          />
+        )}
+        
+        {/* Canvas з зображенням */}
         {currentImage && (
           <div style={{
             position: 'fixed',
@@ -234,21 +251,6 @@ return (
             />
           </div>
         )}
-        
-        {currentImage && (
-          <div
-            onClick={() => setCurrentImage(null)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              zIndex: 999
-            }}
-          />
-        )}
       </div>
       
       <details className="info-overlay">
@@ -263,4 +265,3 @@ return (
       </details>
     </>
   );
-}
