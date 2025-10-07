@@ -177,33 +177,90 @@ export default function KeynoteCompanion() {
 
   return (
     <>
-      <div className="keynote-companion" style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+      <div className="keynote-companion">
         <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
-        
-        {currentImage && (
+      </div>
+      
+      {currentImage && (
+        <>
+          {/* Затемненный фон */}
+          <div 
+            onClick={() => setCurrentImage(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.7)',
+              zIndex: 9998,
+            }}
+          />
+          
+          {/* Изображение поверх всего */}
           <div style={{
-            width: '400px',
-            height: '400px',
-            border: '2px solid #ccc',
-            borderRadius: '8px',
-            overflow: 'hidden',
-            backgroundColor: '#f5f5f5',
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '90vw',
+            maxWidth: '700px',
+            height: 'auto',
+            maxHeight: '80vh',
+            backgroundColor: '#fff',
+            borderRadius: '16px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            zIndex: 9999,
+            padding: '15px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
           }}>
+            <button 
+              onClick={() => setCurrentImage(null)}
+              style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                background: '#ff4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                width: '40px',
+                height: '40px',
+                cursor: 'pointer',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10000,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              ×
+            </button>
             <img 
               src={currentImage} 
               alt="Content from spreadsheet"
               style={{
                 maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'contain'
+                maxHeight: '75vh',
+                objectFit: 'contain',
+                borderRadius: '8px',
+              }}
+              onError={(e) => {
+                console.error('Failed to load image:', currentImage);
+                alert('Не удалось загрузить изображение. Проверьте ссылку в консоли: ' + currentImage);
+                setCurrentImage(null);
               }}
             />
           </div>
-        )}
-      </div>
+        </>
+      )}
       
       <details className="info-overlay">
         <summary className="info-button">
