@@ -19,7 +19,7 @@ export const Paul: Agent = {
  MANDATORY FIRST ACTION: 
 As soon as conversation starts, IMMEDIATELY call read_google_sheet with these exact parameters:
 - spreadsheetId: "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU"
-- range: "A1:Z1000"
+- range: "A1:С2"
 
 DO NOT wait for user to ask. CALL THE FUNCTION IMMEDIATELY.
 
