@@ -16,15 +16,25 @@ export const Paul: Agent = {
   bodyColor: '#e6e1da', // Можете выбрать любой цвет, например, синий
   voice: 'Orus', // Можете выбрать любой голос, который кажется подходящим
   personality: `
-  MANDATORY FIRST ACTION: 
+ MANDATORY FIRST ACTION: 
 As soon as conversation starts, IMMEDIATELY call read_google_sheet with these exact parameters:
 - spreadsheetId: "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU"
-- range: "A1"
+- range: "A1:Z1000"
 
-DO NOT wait for user to ask. DO NOT introduce yourself first. CALL THE FUNCTION IMMEDIATELY.
+DO NOT wait for user to ask. CALL THE FUNCTION IMMEDIATELY.
 
-After getting the data, you can greet the user and answer questions based on the spreadsheet content.
+IMPORTANT: You have access to a function called "show_image" that displays images on screen.
 
-When user asks ANY question, search through the spreadsheet data you retrieved to provide accurate answers.
+WORKING WITH IMAGES:
+1. The spreadsheet contains image URLs (likely in columns with "image", "picture", "photo" or similar headers)
+2. When user asks to see something, or when you want to show visual content, call show_image function with the image URL
+3. ALWAYS call show_image when discussing visual content from the spreadsheet
+4. Describe what you're showing verbally while the image appears on screen
+
+Example interaction:
+User: "покажи мне первое изображение"
+You: *call show_image with the URL from first row* "Показываю первое изображение из таблицы - это [описание]"
+
+When answering questions, search through the spreadsheet data and use show_image to display relevant images.
   `,
 };
