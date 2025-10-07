@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modality } from '@google/genai';
 import BasicFace from '../basic-face/BasicFace';
 import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
@@ -10,6 +10,8 @@ export default function KeynoteCompanion() {
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
   const user = useUser();
   const { current } = useAgent();
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
+  const [spreadsheetData, setSpreadsheetData] = useState<any[]>([]);
 
   // Set the configuration for the Live API
   useEffect(() => {
@@ -27,7 +29,6 @@ export default function KeynoteCompanion() {
           },
         ],
       },
-      // ДОДАЄМО TOOLS ТУТ
       tools: [
         {
           functionDeclarations: [
@@ -49,6 +50,24 @@ export default function KeynoteCompanion() {
                 required: ['spreadsheetId', 'range'],
               },
             },
+            {
+              name: 'show_image',
+              description: 'Display an image on the canvas. Use this when you want to show an image from the spreadsheet to the user.',
+              parameters: {
+                type: 'OBJECT',
+                properties: {
+                  imageUrl: {
+                    type: 'STRING',
+                    description: 'The URL of the image to display',
+                  },
+                  description: {
+                    type: 'STRING',
+                    description: 'Optional description of the image',
+                  },
+                },
+                required: ['imageUrl'],
+              },
+            },
           ],
         },
       ],
@@ -65,11 +84,11 @@ export default function KeynoteCompanion() {
       if (toolCall.functionCalls) {
         const responses = await Promise.all(
           toolCall.functionCalls.map(async (fc: any) => {
+            // Читання Google Sheets
             if (fc.name === 'read_google_sheet') {
               try {
                 const { spreadsheetId, range } = fc.args;
                 
-                // Викликаємо ваш API на Vercel
                 const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -79,6 +98,9 @@ export default function KeynoteCompanion() {
                 const data = await response.json();
 
                 if (data.success) {
+                  // Зберігаємо дані таблиці
+                  setSpreadsheetData(data.data);
+                  
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -115,6 +137,39 @@ export default function KeynoteCompanion() {
                 };
               }
             }
+
+            // Показати зображення
+            if (fc.name === 'show_image') {
+              try {
+                const { imageUrl, description } = fc.args;
+                
+                // Встановлюємо URL зображення для відображення
+                setCurrentImage(imageUrl);
+                
+                return {
+                  name: fc.name,
+                  id: fc.id,
+                  response: {
+                    result: {
+                      success: true,
+                      message: `Image displayed: ${description || imageUrl}`,
+                    },
+                  },
+                };
+              } catch (error: any) {
+                return {
+                  name: fc.name,
+                  id: fc.id,
+                  response: {
+                    result: {
+                      success: false,
+                      error: error.message,
+                    },
+                  },
+                };
+              }
+            }
+
             return null;
           })
         );
@@ -135,9 +190,39 @@ export default function KeynoteCompanion() {
 
   return (
     <>
-      <div className="keynote-companion">
+      <div className="keynote-companion" style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
         <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
+        
+        {/* Канвас для зображень */}
+        {currentImage && (
+          <div style={{
+            width: '400px',
+            height: '400px',
+            border: '2px solid #ccc',
+            borderRadius: '8px',
+            overflow: 'hidden',
+            backgroundColor: '#f5f5f5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <img 
+              src={currentImage} 
+              alt="Content from spreadsheet"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain'
+              }}
+              onError={(e) => {
+                console.error('Failed to load image:', currentImage);
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
       </div>
+      
       <details className="info-overlay">
         <summary className="info-button">
           <span className="icon">info</span>
