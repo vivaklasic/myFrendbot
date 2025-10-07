@@ -8,11 +8,11 @@ import { useAgent, useUser } from '@/lib/state';
 export default function KeynoteCompanion() {
   const { client, connected, setConfig } = useLiveAPIContext();
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [showCanvas, setShowCanvas] = useState(false); // 👈 показ зображення
+  const [showCanvas, setShowCanvas] = useState(false);
   const user = useUser();
   const { current } = useAgent();
 
-  // 🔹 Налаштування API
+  // Конфіг для голосового API
   useEffect(() => {
     setConfig({
       responseModalities: [Modality.AUDIO],
@@ -41,11 +41,11 @@ export default function KeynoteCompanion() {
             },
             {
               name: 'show_image',
-              description: 'Show image or visualization on canvas.',
+              description: 'Show or hide canvas image.',
               parameters: {
                 type: 'OBJECT',
                 properties: {
-                  visible: { type: 'BOOLEAN', description: 'Whether to show the canvas image' },
+                  visible: { type: 'BOOLEAN', description: 'Whether to show the canvas' },
                 },
                 required: ['visible'],
               },
@@ -56,7 +56,7 @@ export default function KeynoteCompanion() {
     });
   }, [setConfig, user, current]);
 
-  // 🔹 Обробка tool calls (включно з керуванням canvas)
+  // Обробка викликів інструментів
   useEffect(() => {
     if (!client || !connected) return;
 
@@ -91,10 +91,10 @@ export default function KeynoteCompanion() {
               }
             }
 
-            // 🔹 Керування canvas через функцію show_image
+            // 👇 бот керує показом зображення
             if (fc.name === 'show_image') {
               const { visible } = fc.args;
-              setShowCanvas(!!visible); // показати або сховати зображення
+              setShowCanvas(!!visible);
               return {
                 name: fc.name,
                 id: fc.id,
@@ -114,10 +114,10 @@ export default function KeynoteCompanion() {
   }, [client, connected]);
 
   return (
-    <div className="relative keynote-companion">
-      {/* 🟢 Canvas, який з’являється тільки при showCanvas */}
+    <div className="relative w-full h-full">
+      {/* 🟢 Canvas — показується лише коли showCanvas = true */}
       {showCanvas && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/20 backdrop-blur-sm">
           <div className="relative bg-white rounded-2xl shadow-lg p-4">
             <button
               onClick={() => setShowCanvas(false)}
@@ -130,17 +130,19 @@ export default function KeynoteCompanion() {
         </div>
       )}
 
-      {/* 🔊 Голосовий бот */}
-      <details className="info-overlay z-10">
-        <summary className="info-button">
-          <span className="icon">info</span>
-        </summary>
-        <div className="info-text">
-          <p>
-            Experimental model from Google DeepMind. Adapted for the service. Speaks many languages. On iOS, disable AVR.
-          </p>
-        </div>
-      </details>
+      {/* 🔊 Сам бот — завжди видимий */}
+      <div className="relative z-10 p-4">
+        <details className="info-overlay">
+          <summary className="info-button">
+            <span className="icon">info</span>
+          </summary>
+          <div className="info-text">
+            <p>
+              Experimental model from Google DeepMind. Adapted for the service. Speaks many languages. On iOS, disable AVR.
+            </p>
+          </div>
+        </details>
+      </div>
     </div>
   );
 }
