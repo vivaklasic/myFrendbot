@@ -5,51 +5,6 @@ import { useLiveAPIContext } from '../../../contexts/LiveAPIContext';
 import { createSystemInstructions } from '@/lib/prompts';
 import { useAgent, useUser } from '@/lib/state';
 
-const SPREADSHEET_INSTRUCTIONS = `
-
-YOU HAVE ACCESS TO GOOGLE SHEETS DATA AND IMAGE DISPLAY.
-
-SPREADSHEET CONFIGURATION:
-- Spreadsheet ID: "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU"
-- Sheet name: "trees"
-- Range to read: "trees!A1:C3"
-- Structure:
-  * Column A: Name of the tree
-  * Column B: Description
-  * Column C: Image URL
-
-HOW TO USE read_google_sheet FUNCTION:
-When user asks about trees or data, call:
-read_google_sheet({
-  spreadsheetId: "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU",
-  range: "trees!A1:C3"
-})
-
-The function returns data as array of rows:
-- data[0] = headers ["Name of the tree", "Description", "Image URL"]
-- data[1] = first tree [name, description, url]
-- data[2] = second tree [name, description, url]
-
-HOW TO USE show_image FUNCTION:
-When you want to display an image to the user, call:
-show_image({
-  imageUrl: "URL from column C"
-})
-
-WORKFLOW EXAMPLE:
-1. User: "покажи мне дерево"
-2. You call read_google_sheet to get data
-3. You receive the data and parse it
-4. You call show_image with URL from data[1][2] (first tree's image)
-5. You tell user: "Показываю [name from data[1][0]]: [description from data[1][1]]"
-
-IMPORTANT RULES:
-- Always read sheet when user asks about trees/data
-- Always show images when discussing specific trees
-- Use actual data from cells in your responses
-- Parse the array correctly: row[0]=name, row[1]=description, row[2]=imageUrl
-`;
-
 export default function KeynoteCompanion() {
   const { client, connected, setConfig } = useLiveAPIContext();
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -69,7 +24,7 @@ export default function KeynoteCompanion() {
       systemInstruction: {
         parts: [
           {
-            text: createSystemInstructions(current, user) + SPREADSHEET_INSTRUCTIONS,
+            text: createSystemInstructions(current, user),
           },
         ],
       },
