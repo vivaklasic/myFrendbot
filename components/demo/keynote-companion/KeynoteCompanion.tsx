@@ -11,6 +11,7 @@ export default function KeynoteCompanion() {
   const user = useUser();
   const { current } = useAgent();
 
+  // Set the configuration for the Live API
   useEffect(() => {
     setConfig({
       responseModalities: [Modality.AUDIO],
@@ -20,19 +21,30 @@ export default function KeynoteCompanion() {
         },
       },
       systemInstruction: {
-        parts: [{ text: createSystemInstructions(current, user) }],
+        parts: [
+          {
+            text: createSystemInstructions(current, user),
+          },
+        ],
       },
+      // ДОДАЄМО TOOLS ТУТ
       tools: [
         {
           functionDeclarations: [
             {
               name: 'read_google_sheet',
-              description: 'Read data from Google Sheets spreadsheet.',
+              description: 'Read data from Google Sheets spreadsheet. Use this when user asks about data in their spreadsheet or provides a spreadsheet ID.',
               parameters: {
                 type: 'OBJECT',
                 properties: {
-                  spreadsheetId: { type: 'STRING', description: 'Spreadsheet ID' },
-                  range: { type: 'STRING', description: 'Range like A1:Z100' },
+                  spreadsheetId: {
+                    type: 'STRING',
+                    description: 'The Google Sheets spreadsheet ID (from the URL)',
+                  },
+                  range: {
+                    type: 'STRING',
+                    description: 'The range to read, e.g. "A1:Z100" or "Sheet1!A1:B10"',
+                  },
                 },
                 required: ['spreadsheetId', 'range'],
               },
@@ -43,50 +55,99 @@ export default function KeynoteCompanion() {
     });
   }, [setConfig, user, current]);
 
-  // 🔍 тест загрузки картинки по ссылке
+  // Обробка tool calls від Gemini
   useEffect(() => {
-    const url = 'https://example.com/test-image.png'; // 🔹 замени на свою ссылку
-    const img = new Image();
-    img.crossOrigin = 'anonymous'; // важно, если источник внешний
-    img.onload = () => {
-      const canvas = faceCanvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        console.log('✅ Image drawn successfully');
+    if (!client || !connected) return;
+
+    const handleToolCall = async (toolCall: any) => {
+      console.log('Tool call received:', toolCall);
+
+      if (toolCall.functionCalls) {
+        const responses = await Promise.all(
+          toolCall.functionCalls.map(async (fc: any) => {
+            if (fc.name === 'read_google_sheet') {
+              try {
+                const { spreadsheetId, range } = fc.args;
+                
+                // Викликаємо ваш API на Vercel
+                const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ spreadsheetId, range }),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                  return {
+                    name: fc.name,
+                    id: fc.id,
+                    response: {
+                      result: {
+                        success: true,
+                        data: data.data,
+                        rowCount: data.data.length,
+                      },
+                    },
+                  };
+                } else {
+                  return {
+                    name: fc.name,
+                    id: fc.id,
+                    response: {
+                      result: {
+                        success: false,
+                        error: data.error || 'Failed to read spreadsheet',
+                      },
+                    },
+                  };
+                }
+              } catch (error: any) {
+                return {
+                  name: fc.name,
+                  id: fc.id,
+                  response: {
+                    result: {
+                      success: false,
+                      error: error.message,
+                    },
+                  },
+                };
+              }
+            }
+            return null;
+          })
+        );
+
+        // Відправляємо результати назад в Gemini
+        client.sendToolResponse({
+          functionResponses: responses.filter(r => r !== null),
+        });
       }
     };
-    img.onerror = (err) => {
-      console.error('❌ Image load error:', err);
+
+    client.on('toolcall', handleToolCall);
+
+    return () => {
+      client.off('toolcall', handleToolCall);
     };
-    img.src = url;
-  }, []);
+  }, [client, connected]);
 
   return (
     <>
-      <div className="keynote-companion relative w-full h-full">
-        {/* 🔊 блок с ботом */}
-        <div className="relative z-10">
-          <details className="info-overlay">
-            <summary className="info-button">
-              <span className="icon">info</span>
-            </summary>
-            <div className="info-text">
-              <p>
-                Experimental model from Google DeepMind. Adapted for the service. Speaks many languages.
-              </p>
-            </div>
-          </details>
-        </div>
-
-        {/* 🖼 канвас поверх бота */}
-        <div className="absolute inset-0 z-40 flex justify-center items-center pointer-events-none">
-          <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
-          {/* 👉 если BasicFace не рисует сам, можно отладить через drawImage выше */}
-        </div>
+      <div className="keynote-companion">
+        <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
       </div>
+      <details className="info-overlay">
+        <summary className="info-button">
+          <span className="icon">info</span>
+        </summary>
+        <div className="info-text">
+          <p>
+            Experimental model from Google DeepMind. Adapted for the service. Speaks many languages. On iOS, disable AVR.
+          </p>
+        </div>
+      </details>
     </>
   );
 }
