@@ -33,7 +33,7 @@ export default function KeynoteCompanion() {
           functionDeclarations: [
             {
               name: 'read_google_sheet',
-              description: 'Read data from Google Sheets spreadsheet. Use this when user asks about data in their spreadsheet or provides a spreadsheet ID.',
+              description: 'Read data from Google Sheets spreadsheet. The spreadsheet has multiple sheets: 1) "INDEX" sheet with columns: theme, description, sheet_name. 2) Content sheets like "trees" with columns: Name of the tree, Description, Image URL. IMPORTANT: Always read from range A1:C3 to get headers and data. First row contains headers, second row contains data.',
               parameters: {
                 type: 'OBJECT',
                 properties: {
@@ -43,7 +43,7 @@ export default function KeynoteCompanion() {
                   },
                   range: {
                     type: 'STRING',
-                    description: 'The range to read, e.g. "A1:Z100" or "Sheet1!A1:B10"',
+                    description: 'The range to read. Use "trees!A1:C3" to read from trees sheet with headers and one data row.',
                   },
                 },
                 required: ['spreadsheetId', 'range'],
