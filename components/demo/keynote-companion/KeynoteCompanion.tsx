@@ -11,7 +11,6 @@ export default function KeynoteCompanion() {
   const user = useUser();
   const { current } = useAgent();
   const [currentImage, setCurrentImage] = useState<string | null>(null);
-  const [spreadsheetData, setSpreadsheetData] = useState<any[]>([]);
 
   // Set the configuration for the Live API
   useEffect(() => {
@@ -52,17 +51,13 @@ export default function KeynoteCompanion() {
             },
             {
               name: 'show_image',
-              description: 'Display an image on the canvas. Use this when you want to show an image from the spreadsheet to the user.',
+              description: 'Display an image on the canvas. Use this when the spreadsheet data contains image URLs and you want to show them to the user.',
               parameters: {
                 type: 'OBJECT',
                 properties: {
                   imageUrl: {
                     type: 'STRING',
                     description: 'The URL of the image to display',
-                  },
-                  description: {
-                    type: 'STRING',
-                    description: 'Optional description of the image',
                   },
                 },
                 required: ['imageUrl'],
@@ -84,7 +79,6 @@ export default function KeynoteCompanion() {
       if (toolCall.functionCalls) {
         const responses = await Promise.all(
           toolCall.functionCalls.map(async (fc: any) => {
-            // Читання Google Sheets
             if (fc.name === 'read_google_sheet') {
               try {
                 const { spreadsheetId, range } = fc.args;
@@ -98,9 +92,6 @@ export default function KeynoteCompanion() {
                 const data = await response.json();
 
                 if (data.success) {
-                  // Зберігаємо дані таблиці
-                  setSpreadsheetData(data.data);
-                  
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -138,12 +129,9 @@ export default function KeynoteCompanion() {
               }
             }
 
-            // Показати зображення
             if (fc.name === 'show_image') {
               try {
-                const { imageUrl, description } = fc.args;
-                
-                // Встановлюємо URL зображення для відображення
+                const { imageUrl } = fc.args;
                 setCurrentImage(imageUrl);
                 
                 return {
@@ -152,7 +140,7 @@ export default function KeynoteCompanion() {
                   response: {
                     result: {
                       success: true,
-                      message: `Image displayed: ${description || imageUrl}`,
+                      message: 'Image displayed',
                     },
                   },
                 };
@@ -174,7 +162,6 @@ export default function KeynoteCompanion() {
           })
         );
 
-        // Відправляємо результати назад в Gemini
         client.sendToolResponse({
           functionResponses: responses.filter(r => r !== null),
         });
@@ -193,7 +180,6 @@ export default function KeynoteCompanion() {
       <div className="keynote-companion" style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
         <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
         
-        {/* Канвас для зображень */}
         {currentImage && (
           <div style={{
             width: '400px',
@@ -213,10 +199,6 @@ export default function KeynoteCompanion() {
                 maxWidth: '100%',
                 maxHeight: '100%',
                 objectFit: 'contain'
-              }}
-              onError={(e) => {
-                console.error('Failed to load image:', currentImage);
-                e.currentTarget.style.display = 'none';
               }}
             />
           </div>
