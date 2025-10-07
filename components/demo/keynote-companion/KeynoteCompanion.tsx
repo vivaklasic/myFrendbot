@@ -341,3 +341,4 @@ export default function KeynoteCompanion() {
       </details>
     </>
   );
+}
