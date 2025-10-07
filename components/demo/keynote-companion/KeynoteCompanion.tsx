@@ -113,36 +113,45 @@ export default function KeynoteCompanion() {
     return () => client.off('toolcall', handleToolCall);
   }, [client, connected]);
 
-  return (
-    <div className="relative w-full h-full">
-      {/* 🟢 Canvas — показується лише коли showCanvas = true */}
-      {showCanvas && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="relative bg-white rounded-2xl shadow-lg p-4">
-            <button
-              onClick={() => setShowCanvas(false)}
-              className="absolute top-2 right-2 bg-red-600 text-white text-sm px-2 py-1 rounded-md hover:bg-red-700"
-            >
-              ✕ Закрити
-            </button>
-            <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
-          </div>
+ return (
+  <div className="relative flex flex-col items-center justify-center w-full h-full overflow-hidden">
+    {/* 🔊 Блок з ботом — завжди присутній */}
+    <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
+      <details className="info-overlay">
+        <summary className="info-button cursor-pointer">
+          <span className="icon">info</span>
+        </summary>
+        <div className="info-text">
+          <p>
+            Experimental model from Google DeepMind. Adapted for the service. Speaks many languages. On iOS, disable AVR.
+          </p>
         </div>
-      )}
+      </details>
 
-      {/* 🔊 Сам бот — завжди видимий */}
-      <div className="relative z-10 p-4">
-        <details className="info-overlay">
-          <summary className="info-button">
-            <span className="icon">info</span>
-          </summary>
-          <div className="info-text">
-            <p>
-              Experimental model from Google DeepMind. Adapted for the service. Speaks many languages. On iOS, disable AVR.
-            </p>
-          </div>
-        </details>
+      {/* 👇 якщо у тебе є інший компонент бота (наприклад VoiceAgent або Avatar), додай його сюди */}
+      <div id="bot-container" className="w-full flex items-center justify-center mt-4">
+        {/* Твій голосовий бот */}
+        <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
       </div>
     </div>
-  );
+
+    {/* 🖼 Canvas поверх, зʼявляється тільки коли showCanvas = true */}
+    {showCanvas && (
+      <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="relative bg-white rounded-2xl shadow-xl p-4">
+          <button
+            onClick={() => setShowCanvas(false)}
+            className="absolute top-2 right-2 bg-red-600 text-white text-sm px-2 py-1 rounded-md hover:bg-red-700"
+          >
+            ✕ Закрити
+          </button>
+
+          {/* Canvas або візуалізація */}
+          <canvas ref={faceCanvasRef} width={400} height={300} className="rounded-xl shadow-md" />
+        </div>
+      </div>
+    )}
+  </div>
+);
+
 }
