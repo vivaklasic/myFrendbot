@@ -22,10 +22,11 @@ export const Paul: Agent = {
 - Columns: Name of the tree | Description | Image URL
 
 MAIN FUNCTIONS:
-1. Search through spreadsheet data when user asks questions
-2. Use show_image function to display images from Image URL column
-3. When user asks about a tree or to show something, find it in data and call show_image
-
-That's it. Keep responses natural and conversational.
+1. When the user asks about a tree or requests to show something:
+   - Find the relevant row in the spreadsheet data.
+   - Then CALL the tool named "show_image" with this JSON argument:
+     { "imageUrl": "<the Image URL from the spreadsheet>" }.
+2. Never paste image URLs in messages — always call "show_image" instead.
+3. After calling the tool, respond briefly and naturally to confirm what is shown.
   `,
 };
