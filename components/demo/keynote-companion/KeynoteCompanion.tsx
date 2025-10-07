@@ -82,7 +82,6 @@ export default function KeynoteCompanion() {
             if (fc.name === 'read_google_sheet') {
               try {
                 const { spreadsheetId, range } = fc.args;
-                console.log('Reading sheet:', { spreadsheetId, range });
                 
                 const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
                   method: 'POST',
@@ -91,16 +90,8 @@ export default function KeynoteCompanion() {
                 });
 
                 const data = await response.json();
-                console.log('Sheet data received:', data);
 
-                if (data.success && data.data) {
-                  // Детальне форматування даних для бота
-                  const formattedData = data.data.map((row: any[], index: number) => {
-                    return `Row ${index + 1}: ${row.join(' | ')}`;
-                  }).join('\n');
-
-                  console.log('Formatted data:', formattedData);
-
+                if (data.success) {
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -108,14 +99,11 @@ export default function KeynoteCompanion() {
                       result: {
                         success: true,
                         data: data.data,
-                        formattedData: formattedData,
                         rowCount: data.data.length,
-                        columnCount: data.data[0]?.length || 0,
                       },
                     },
                   };
                 } else {
-                  console.error('Failed to read sheet:', data.error);
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -128,7 +116,6 @@ export default function KeynoteCompanion() {
                   };
                 }
               } catch (error: any) {
-                console.error('Sheet read error:', error);
                 return {
                   name: fc.name,
                   id: fc.id,
@@ -145,23 +132,6 @@ export default function KeynoteCompanion() {
             if (fc.name === 'show_image') {
               try {
                 const { imageUrl } = fc.args;
-                console.log('Showing image:', imageUrl);
-                
-                // Перевірка чи це дійсно URL
-                if (!imageUrl || !imageUrl.startsWith('http')) {
-                  console.error('Invalid image URL:', imageUrl);
-                  return {
-                    name: fc.name,
-                    id: fc.id,
-                    response: {
-                      result: {
-                        success: false,
-                        error: 'Invalid image URL provided',
-                      },
-                    },
-                  };
-                }
-                
                 setCurrentImage(imageUrl);
                 
                 return {
@@ -170,12 +140,11 @@ export default function KeynoteCompanion() {
                   response: {
                     result: {
                       success: true,
-                      message: `Image displayed: ${imageUrl}`,
+                      message: 'Image displayed',
                     },
                   },
                 };
               } catch (error: any) {
-                console.error('Image display error:', error);
                 return {
                   name: fc.name,
                   id: fc.id,
@@ -208,69 +177,21 @@ export default function KeynoteCompanion() {
 
   return (
     <>
-      <div className="keynote-companion">
+      <div className="keynote-companion" style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
         <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
         
-        {/* Затемнення фону */}
-        {currentImage && (
-          <div
-            onClick={() => setCurrentImage(null)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.5)',
-              zIndex: 999
-            }}
-          />
-        )}
-        
-        {/* Canvas з зображенням */}
         {currentImage && (
           <div style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '90vw',
-            maxWidth: '600px',
-            height: 'auto',
-            maxHeight: '80vh',
+            width: '400px',
+            height: '400px',
             border: '2px solid #ccc',
             borderRadius: '8px',
             overflow: 'hidden',
             backgroundColor: '#f5f5f5',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            padding: '20px'
+            justifyContent: 'center'
           }}>
-            <button
-              onClick={() => setCurrentImage(null)}
-              style={{
-                position: 'absolute',
-                top: '10px',
-                right: '10px',
-                background: 'rgba(0,0,0,0.5)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '50%',
-                width: '30px',
-                height: '30px',
-                cursor: 'pointer',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1001
-              }}
-            >
-              ×
-            </button>
             <img 
               src={currentImage} 
               alt="Content from spreadsheet"
