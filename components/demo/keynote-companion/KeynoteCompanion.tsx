@@ -175,23 +175,54 @@ export default function KeynoteCompanion() {
     };
   }, [client, connected]);
 
-  return (
+return (
     <>
-      <div className="keynote-companion" style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+      <div className="keynote-companion">
         <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
         
         {currentImage && (
           <div style={{
-            width: '400px',
-            height: '400px',
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '90vw',
+            maxWidth: '600px',
+            height: 'auto',
+            maxHeight: '80vh',
             border: '2px solid #ccc',
             borderRadius: '8px',
             overflow: 'hidden',
             backgroundColor: '#f5f5f5',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            zIndex: 1000,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            padding: '20px'
           }}>
+            <button
+              onClick={() => setCurrentImage(null)}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                background: 'rgba(0,0,0,0.5)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                width: '30px',
+                height: '30px',
+                cursor: 'pointer',
+                fontSize: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1001
+              }}
+            >
+              ×
+            </button>
             <img 
               src={currentImage} 
               alt="Content from spreadsheet"
@@ -202,6 +233,21 @@ export default function KeynoteCompanion() {
               }}
             />
           </div>
+        )}
+        
+        {currentImage && (
+          <div
+            onClick={() => setCurrentImage(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              zIndex: 999
+            }}
+          />
         )}
       </div>
       
