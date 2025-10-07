@@ -8,11 +8,11 @@ import { useAgent, useUser } from '@/lib/state';
 export default function KeynoteCompanion() {
   const { client, connected, setConfig } = useLiveAPIContext();
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [showCanvas, setShowCanvas] = useState(false);
   const user = useUser();
   const { current } = useAgent();
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
 
-  // Конфіг для голосового API
+  // Set the configuration for the Live API
   useEffect(() => {
     setConfig({
       responseModalities: [Modality.AUDIO],
@@ -22,32 +22,45 @@ export default function KeynoteCompanion() {
         },
       },
       systemInstruction: {
-        parts: [{ text: createSystemInstructions(current, user) }],
+        parts: [
+          {
+            text: createSystemInstructions(current, user),
+          },
+        ],
       },
       tools: [
         {
           functionDeclarations: [
             {
               name: 'read_google_sheet',
-              description: 'Read data from Google Sheets spreadsheet.',
+              description: 'Read data from Google Sheets spreadsheet. Use this when user asks about data in their spreadsheet or provides a spreadsheet ID.',
               parameters: {
                 type: 'OBJECT',
                 properties: {
-                  spreadsheetId: { type: 'STRING', description: 'Spreadsheet ID' },
-                  range: { type: 'STRING', description: 'Range, e.g. "A1:Z10"' },
+                  spreadsheetId: {
+                    type: 'STRING',
+                    description: 'The Google Sheets spreadsheet ID (from the URL)',
+                  },
+                  range: {
+                    type: 'STRING',
+                    description: 'The range to read, e.g. "A1:Z100" or "Sheet1!A1:B10"',
+                  },
                 },
                 required: ['spreadsheetId', 'range'],
               },
             },
             {
               name: 'show_image',
-              description: 'Show or hide canvas image.',
+              description: 'Display an image on the canvas. Use this when the spreadsheet data contains image URLs and you want to show them to the user.',
               parameters: {
                 type: 'OBJECT',
                 properties: {
-                  visible: { type: 'BOOLEAN', description: 'Whether to show the canvas' },
+                  imageUrl: {
+                    type: 'STRING',
+                    description: 'The URL of the image to display',
+                  },
                 },
-                required: ['visible'],
+                required: ['imageUrl'],
               },
             },
           ],
@@ -56,69 +69,174 @@ export default function KeynoteCompanion() {
     });
   }, [setConfig, user, current]);
 
-  // Обробка викликів інструментів
+  // Обробка tool calls від Gemini
   useEffect(() => {
     if (!client || !connected) return;
 
     const handleToolCall = async (toolCall: any) => {
+      console.log('Tool call received:', toolCall);
+
       if (toolCall.functionCalls) {
         const responses = await Promise.all(
           toolCall.functionCalls.map(async (fc: any) => {
             if (fc.name === 'read_google_sheet') {
               try {
                 const { spreadsheetId, range } = fc.args;
+                
                 const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ spreadsheetId, range }),
                 });
+
                 const data = await response.json();
+
+                if (data.success) {
+                  return {
+                    name: fc.name,
+                    id: fc.id,
+                    response: {
+                      result: {
+                        success: true,
+                        data: data.data,
+                        rowCount: data.data.length,
+                      },
+                    },
+                  };
+                } else {
+                  return {
+                    name: fc.name,
+                    id: fc.id,
+                    response: {
+                      result: {
+                        success: false,
+                        error: data.error || 'Failed to read spreadsheet',
+                      },
+                    },
+                  };
+                }
+              } catch (error: any) {
                 return {
                   name: fc.name,
                   id: fc.id,
                   response: {
-                    result: data.success
-                      ? { success: true, data: data.data, rowCount: data.data.length }
-                      : { success: false, error: data.error || 'Failed to read spreadsheet' },
+                    result: {
+                      success: false,
+                      error: error.message,
+                    },
+                  },
+                };
+              }
+            }
+
+            if (fc.name === 'show_image') {
+              try {
+                const { imageUrl } = fc.args;
+                setCurrentImage(imageUrl);
+                
+                return {
+                  name: fc.name,
+                  id: fc.id,
+                  response: {
+                    result: {
+                      success: true,
+                      message: 'Image displayed',
+                    },
                   },
                 };
               } catch (error: any) {
                 return {
                   name: fc.name,
                   id: fc.id,
-                  response: { result: { success: false, error: error.message } },
+                  response: {
+                    result: {
+                      success: false,
+                      error: error.message,
+                    },
+                  },
                 };
               }
-            }
-
-            // 👇 бот керує показом зображення
-            if (fc.name === 'show_image') {
-              const { visible } = fc.args;
-              setShowCanvas(!!visible);
-              return {
-                name: fc.name,
-                id: fc.id,
-                response: { result: { success: true } },
-              };
             }
 
             return null;
           })
         );
-        client.sendToolResponse({ functionResponses: responses.filter(Boolean) });
+
+        client.sendToolResponse({
+          functionResponses: responses.filter(r => r !== null),
+        });
       }
     };
 
     client.on('toolcall', handleToolCall);
-    return () => client.off('toolcall', handleToolCall);
+
+    return () => {
+      client.off('toolcall', handleToolCall);
+    };
   }, [client, connected]);
 
- return (
-  <div className="relative flex flex-col items-center justify-center w-full h-full overflow-hidden">
-    {/* 🔊 Блок з ботом — завжди присутній */}
-    <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
+  return (
+    <>
+      <div className="keynote-companion">
+        <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
+      </div>
+      
+      {currentImage && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '90vw',
+          maxWidth: '600px',
+          height: 'auto',
+          maxHeight: '70vh',
+          border: '3px solid #333',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          backgroundColor: '#fff',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+          zIndex: 1000,
+          padding: '10px'
+        }}>
+          <button 
+            onClick={() => setCurrentImage(null)}
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              background: 'rgba(0,0,0,0.7)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '30px',
+              height: '30px',
+              cursor: 'pointer',
+              fontSize: '18px',
+              zIndex: 1001
+            }}
+          >
+            ×
+          </button>
+          <img 
+            src={currentImage} 
+            alt="Content from spreadsheet"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain'
+            }}
+            onError={(e) => {
+              console.error('Failed to load image:', currentImage);
+              alert('Не удалось загрузить изображение. Проверьте, что ссылка - прямая ссылка на изображение (заканчивается на .jpg, .png и т.д.)');
+              setCurrentImage(null);
+            }}
+          />
+        </div>
+      )}
+      
       <details className="info-overlay">
-        <summary className="info-button cursor-pointer">
+        <summary className="info-button">
           <span className="icon">info</span>
         </summary>
         <div className="info-text">
@@ -127,31 +245,6 @@ export default function KeynoteCompanion() {
           </p>
         </div>
       </details>
-
-      {/* 👇 якщо у тебе є інший компонент бота (наприклад VoiceAgent або Avatar), додай його сюди */}
-      <div id="bot-container" className="w-full flex items-center justify-center mt-4">
-        {/* Твій голосовий бот */}
-        <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
-      </div>
-    </div>
-
-    {/* 🖼 Canvas поверх, зʼявляється тільки коли showCanvas = true */}
-    {showCanvas && (
-      <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <div className="relative bg-white rounded-2xl shadow-xl p-4">
-          <button
-            onClick={() => setShowCanvas(false)}
-            className="absolute top-2 right-2 bg-red-600 text-white text-sm px-2 py-1 rounded-md hover:bg-red-700"
-          >
-            ✕ Закрити
-          </button>
-
-          {/* Canvas або візуалізація */}
-          <canvas ref={faceCanvasRef} width={400} height={300} className="rounded-xl shadow-md" />
-        </div>
-      </div>
-    )}
-  </div>
-);
-
+    </>
+  );
 }
