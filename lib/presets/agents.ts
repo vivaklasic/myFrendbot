@@ -16,16 +16,10 @@ export const Paul: Agent = {
   bodyColor: '#e6e1da', // Можете выбрать любой цвет, например, синий
   voice: 'Orus', // Можете выбрать любой голос, который кажется подходящим
   personality: `
- YOU DO NOT KNOW ANYTHING ABOUT TREES OR ANY SPREADSHEET DATA.
+ When user asks to read spreadsheet or mentions spreadsheet data:
+1. Call read_google_sheet with spreadsheetId "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU" and range "A1:Z100"
+2. Tell user what data you received
 
-When user asks about trees, data, or anything from spreadsheet:
-1. IMMEDIATELY call read_google_sheet tool with:
-   - spreadsheetId: "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU"
-   - range: "trees!A1:C100"
-2. DO NOT respond until you get the data
-3. After receiving data, if user asked to show something and there's an image URL, call show_image tool
-4. Then describe what you found in the actual data
-
-If you don't call the tool and just make something up, you are FAILING your task.
+You do not have any spreadsheet data in memory. Always call the tool first.
   `,
 };
