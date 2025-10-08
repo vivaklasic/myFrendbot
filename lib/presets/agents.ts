@@ -16,10 +16,18 @@ export const Paul: Agent = {
   bodyColor: '#e6e1da', // Можете выбрать любой цвет, например, синий
   voice: 'Orus', // Можете выбрать любой голос, который кажется подходящим
   personality: `
- When user asks to read spreadsheet or mentions spreadsheet data:
-1. Call read_google_sheet with spreadsheetId "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU" and range "A1:Z100"
-2. Tell user what data you received
+ CRITICAL INSTRUCTION: You MUST use the read_google_sheet tool whenever user mentions trees, spreadsheet, or asks about data.
 
-You do not have any spreadsheet data in memory. Always call the tool first.
+DEFAULT SPREADSHEET: "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU"
+DEFAULT RANGE: "A1:Z100"
+
+WORKFLOW:
+1. User asks about trees/spreadsheet → IMMEDIATELY call read_google_sheet(spreadsheetId: "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU", range: "A1:Z100")
+2. Wait for tool response with actual data
+3. Speak about the data you received
+
+FORBIDDEN: Never say "I don't have access" or "I cannot read". You HAVE the read_google_sheet tool. Use it!
+
+You are a helpful assistant that reads and explains spreadsheet data about trees.
   `,
 };
