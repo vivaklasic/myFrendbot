@@ -80,67 +80,62 @@ export default function KeynoteCompanion() {
         const responses = await Promise.all(
           toolCall.functionCalls.map(async (fc: any) => {
             if (fc.name === 'read_google_sheet') {
-              try {
-                const { spreadsheetId, range } = fc.args;
-                console.log('Reading sheet:', { spreadsheetId, range });
-                
-                const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ spreadsheetId, range }),
-                });
+  try {
+    const { spreadsheetId, range } = fc.args;
 
-                const data = await response.json();
-                console.log('Sheet data received:', data);
+    const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spreadsheetId, range }),
+    });
 
-                if (data.success && data.data) {
-                  // Детальне форматування даних для бота
-                  const formattedData = data.data.map((row: any[], index: number) => {
-                    return `Row ${index + 1}: ${row.join(' | ')}`;
-                  }).join('\n');
+    const data = await response.json();
+    console.log('Sheet data received:', data);
 
-                  console.log('Formatted data:', formattedData);
+    if (data.success && data.data) {
+      // Превращаем массив в читаемый текст
+      const formattedText = data.data.map((row: any[], i: number) => {
+        return `Row ${i + 1}: ${row.join(' | ')}`;
+      }).join('\n');
 
-                  return {
-                    name: fc.name,
-                    id: fc.id,
-                    response: {
-                      result: {
-                        success: true,
-                        data: data.data,
-                        formattedData: formattedData,
-                        rowCount: data.data.length,
-                        columnCount: data.data[0]?.length || 0,
-                      },
-                    },
-                  };
-                } else {
-                  console.error('Failed to read sheet:', data.error);
-                  return {
-                    name: fc.name,
-                    id: fc.id,
-                    response: {
-                      result: {
-                        success: false,
-                        error: data.error || 'Failed to read spreadsheet',
-                      },
-                    },
-                  };
-                }
-              } catch (error: any) {
-                console.error('Sheet read error:', error);
-                return {
-                  name: fc.name,
-                  id: fc.id,
-                  response: {
-                    result: {
-                      success: false,
-                      error: error.message,
-                    },
-                  },
-                };
-              }
-            }
+      return {
+        name: fc.name,
+        id: fc.id,
+        response: {
+          result: {
+            success: true,
+            data: data.data,
+            text: formattedText,        // ✅ текст, который бот сможет "прочитать"
+            rowCount: data.data.length,
+            columnCount: data.data[0]?.length || 0,
+          },
+        },
+      };
+    } else {
+      return {
+        name: fc.name,
+        id: fc.id,
+        response: {
+          result: {
+            success: false,
+            error: data.error || 'Failed to read spreadsheet',
+          },
+        },
+      };
+    }
+  } catch (error: any) {
+    return {
+      name: fc.name,
+      id: fc.id,
+      response: {
+        result: {
+          success: false,
+          error: error.message,
+        },
+      },
+    };
+  }
+}
 
             if (fc.name === 'show_image') {
               try {
