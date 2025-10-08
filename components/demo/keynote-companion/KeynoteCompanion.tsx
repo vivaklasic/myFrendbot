@@ -82,6 +82,7 @@ export default function KeynoteCompanion() {
             if (fc.name === 'read_google_sheet') {
               try {
                 const { spreadsheetId, range } = fc.args;
+                console.log('Reading sheet:', { spreadsheetId, range });
                 
                 const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
                   method: 'POST',
@@ -90,8 +91,16 @@ export default function KeynoteCompanion() {
                 });
 
                 const data = await response.json();
+                console.log('Sheet data received:', data);
 
-                if (data.success) {
+                if (data.success && data.data) {
+                  // Детальне форматування даних для бота
+                  const formattedData = data.data.map((row: any[], index: number) => {
+                    return `Row ${index + 1}: ${row.join(' | ')}`;
+                  }).join('\n');
+
+                  console.log('Formatted data:', formattedData);
+
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -99,11 +108,14 @@ export default function KeynoteCompanion() {
                       result: {
                         success: true,
                         data: data.data,
+                        formattedData: formattedData,
                         rowCount: data.data.length,
+                        columnCount: data.data[0]?.length || 0,
                       },
                     },
                   };
                 } else {
+                  console.error('Failed to read sheet:', data.error);
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -116,6 +128,7 @@ export default function KeynoteCompanion() {
                   };
                 }
               } catch (error: any) {
+                console.error('Sheet read error:', error);
                 return {
                   name: fc.name,
                   id: fc.id,
