@@ -170,36 +170,24 @@ export default function KeynoteCompanion() {
                   addDebugLog(`✅ Надсилаємо Gemini ${data.data.length} рядків`);
                   
                   return {
-                    name: fc.name,
                     id: fc.id,
-                    response: {
-                      content: [{
-                        text: formattedData
-                      }]
-                    },
+                    name: fc.name,
+                    response: formattedData
                   };
                 } else {
                   addDebugLog(`❌ Помилка: ${data.error}`);
                   return {
-                    name: fc.name,
                     id: fc.id,
-                    response: {
-                      content: [{
-                        text: `Error: ${data.error || 'Failed to read spreadsheet'}`
-                      }]
-                    },
+                    name: fc.name,
+                    response: `Error: ${data.error || 'Failed to read spreadsheet'}`
                   };
                 }
               } catch (error: any) {
                 addDebugLog(`❌ Exception: ${error.message}`);
                 return {
-                  name: fc.name,
                   id: fc.id,
-                  response: {
-                    content: [{
-                      text: `Error: ${error.message}`
-                    }]
-                  },
+                  name: fc.name,
+                  response: `Error: ${error.message}`
                 };
               }
             }
@@ -207,27 +195,20 @@ export default function KeynoteCompanion() {
             if (fc.name === 'show_image') {
               try {
                 const { imageUrl } = fc.args;
-                addDebugLog(`🖼️ Показуємо: ${imageUrl}`);
+                addDebugLog(`🖼️ show_image викликано! URL: ${imageUrl}`);
                 setCurrentImage(imageUrl);
                 
                 return {
-                  name: fc.name,
                   id: fc.id,
-                  response: {
-                    content: [{
-                      text: 'Image displayed successfully'
-                    }]
-                  },
+                  name: fc.name,
+                  response: 'Image displayed successfully'
                 };
               } catch (error: any) {
+                addDebugLog(`❌ show_image помилка: ${error.message}`);
                 return {
-                  name: fc.name,
                   id: fc.id,
-                  response: {
-                    content: [{
-                      text: `Error: ${error.message}`
-                    }]
-                  },
+                  name: fc.name,
+                  response: `Error: ${error.message}`
                 };
               }
             }
