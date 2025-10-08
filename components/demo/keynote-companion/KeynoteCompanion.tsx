@@ -15,9 +15,11 @@ export default function KeynoteCompanion() {
   const [testSpreadsheetId, setTestSpreadsheetId] = useState('');
   const [testRange, setTestRange] = useState('A1:Z100');
   const [debugLog, setDebugLog] = useState<string[]>([]);
+  const [toolCallStatus, setToolCallStatus] = useState<string>('Waiting...');
 
   const addDebugLog = (message: string) => {
     setDebugLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
+    setToolCallStatus(message);
     console.log(message);
   };
 
@@ -237,6 +239,24 @@ export default function KeynoteCompanion() {
     <>
       <div className="keynote-companion">
         <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
+        
+        {/* STATUS INDICATOR */}
+        <div style={{
+          position: 'fixed',
+          top: '10px',
+          left: '10px',
+          right: '10px',
+          background: 'rgba(0,0,0,0.8)',
+          color: '#0f0',
+          padding: '10px',
+          borderRadius: '8px',
+          fontSize: '12px',
+          fontFamily: 'monospace',
+          zIndex: 9999,
+          wordBreak: 'break-word'
+        }}>
+          {toolCallStatus}
+        </div>
         
         {/* Затемнення фону */}
         {currentImage && (
