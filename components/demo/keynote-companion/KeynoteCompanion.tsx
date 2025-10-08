@@ -33,7 +33,7 @@ export default function KeynoteCompanion() {
           functionDeclarations: [
             {
               name: 'read_google_sheet',
-              description: 'Read data from Google Sheets spreadsheet. Use this when user asks about data in their spreadsheet or provides a spreadsheet ID.',
+              description: 'Read data from Google Sheets spreadsheet. Returns formatted data with headers. Use this when user asks about data in their spreadsheet.',
               parameters: {
                 type: 'OBJECT',
                 properties: {
@@ -43,7 +43,7 @@ export default function KeynoteCompanion() {
                   },
                   range: {
                     type: 'STRING',
-                    description: 'The range to read, e.g. "A1:Z100" or "Sheet1!A1:B10"',
+                    description: 'The range to read, e.g. "A1:Z100" or "Sheet1!A1:B10". Include headers in the range.',
                   },
                 },
                 required: ['spreadsheetId', 'range'],
@@ -69,6 +69,32 @@ export default function KeynoteCompanion() {
     });
   }, [setConfig, user, current]);
 
+  // Функція для форматування даних таблиці
+  const formatSheetData = (values: string[][]) => {
+    if (!values || values.length === 0) {
+      return 'Таблиця порожня';
+    }
+
+    // Перший рядок - це заголовки
+    const headers = values[0];
+    const rows = values.slice(1);
+
+    // Форматуємо як масив об'єктів для кращого розуміння
+    const formattedData = rows.map((row, index) => {
+      const rowData: Record<string, string> = {};
+      headers.forEach((header, i) => {
+        rowData[header] = row[i] || '';
+      });
+      return { rowNumber: index + 2, ...rowData }; // +2 бо 1 - заголовки, і рахуємо з 1
+    });
+
+    return JSON.stringify({
+      headers: headers,
+      totalRows: rows.length,
+      data: formattedData
+    }, null, 2);
+  };
+
   // Обробка tool calls від Gemini
   useEffect(() => {
     if (!client || !connected) return;
@@ -82,7 +108,8 @@ export default function KeynoteCompanion() {
             if (fc.name === 'read_google_sheet') {
               try {
                 const { spreadsheetId, range } = fc.args;
-                console.log('Reading sheet:', { spreadsheetId, range });
+                
+                console.log('Запит до Google Sheets:', { spreadsheetId, range });
                 
                 const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
                   method: 'POST',
@@ -91,52 +118,42 @@ export default function KeynoteCompanion() {
                 });
 
                 const data = await response.json();
-                console.log('Sheet data received:', data);
+                
+                console.log('Відповідь від сервера:', data);
 
                 if (data.success && data.data) {
-                  // Детальне форматування даних для бота
-                  const formattedData = data.data.map((row: any[], index: number) => {
-                    return `Row ${index + 1}: ${row.join(' | ')}`;
-                  }).join('\n');
-
-                  console.log('Formatted data:', formattedData);
-
+                  const formattedData = formatSheetData(data.data);
+                  
+                  console.log('Форматовані дані:', formattedData);
+                  
+                  // ВИПРАВЛЕНА СТРУКТУРА: дані безпосередньо в response
                   return {
                     name: fc.name,
                     id: fc.id,
                     response: {
-                      result: {
-                        success: true,
-                        data: data.data,
-                        formattedData: formattedData,
-                        rowCount: data.data.length,
-                        columnCount: data.data[0]?.length || 0,
-                      },
+                      output: formattedData,
+                      success: true,
+                      rowCount: data.data.length
                     },
                   };
                 } else {
-                  console.error('Failed to read sheet:', data.error);
                   return {
                     name: fc.name,
                     id: fc.id,
                     response: {
-                      result: {
-                        success: false,
-                        error: data.error || 'Failed to read spreadsheet',
-                      },
+                      error: data.error || 'Failed to read spreadsheet',
+                      success: false
                     },
                   };
                 }
               } catch (error: any) {
-                console.error('Sheet read error:', error);
+                console.error('Помилка читання таблиці:', error);
                 return {
                   name: fc.name,
                   id: fc.id,
                   response: {
-                    result: {
-                      success: false,
-                      error: error.message,
-                    },
+                    error: error.message,
+                    success: false
                   },
                 };
               }
@@ -145,27 +162,25 @@ export default function KeynoteCompanion() {
             if (fc.name === 'show_image') {
               try {
                 const { imageUrl } = fc.args;
+                console.log('Показуємо зображення:', imageUrl);
                 setCurrentImage(imageUrl);
                 
                 return {
                   name: fc.name,
                   id: fc.id,
                   response: {
-                    result: {
-                      success: true,
-                      message: 'Image displayed',
-                    },
+                    output: 'Image displayed successfully',
+                    success: true
                   },
                 };
               } catch (error: any) {
+                console.error('Помилка показу зображення:', error);
                 return {
                   name: fc.name,
                   id: fc.id,
                   response: {
-                    result: {
-                      success: false,
-                      error: error.message,
-                    },
+                    error: error.message,
+                    success: false
                   },
                 };
               }
@@ -175,8 +190,11 @@ export default function KeynoteCompanion() {
           })
         );
 
+        const validResponses = responses.filter(r => r !== null);
+        console.log('Надсилаємо відповіді:', validResponses);
+        
         client.sendToolResponse({
-          functionResponses: responses.filter(r => r !== null),
+          functionResponses: validResponses,
         });
       }
     };
