@@ -11,6 +11,15 @@ export default function KeynoteCompanion() {
   const user = useUser();
   const { current } = useAgent();
   const [currentImage, setCurrentImage] = useState<string | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
+  const [testSpreadsheetId, setTestSpreadsheetId] = useState('');
+  const [testRange, setTestRange] = useState('A1:Z100');
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+
+  const addDebugLog = (message: string) => {
+    setDebugLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
+    console.log(message);
+  };
 
   // Set the configuration for the Live API
   useEffect(() => {
@@ -75,17 +84,15 @@ export default function KeynoteCompanion() {
       return 'Таблиця порожня';
     }
 
-    // Перший рядок - це заголовки
     const headers = values[0];
     const rows = values.slice(1);
 
-    // Форматуємо як масив об'єктів для кращого розуміння
     const formattedData = rows.map((row, index) => {
       const rowData: Record<string, string> = {};
       headers.forEach((header, i) => {
         rowData[header] = row[i] || '';
       });
-      return { rowNumber: index + 2, ...rowData }; // +2 бо 1 - заголовки, і рахуємо з 1
+      return { rowNumber: index + 2, ...rowData };
     });
 
     return JSON.stringify({
@@ -95,12 +102,47 @@ export default function KeynoteCompanion() {
     }, null, 2);
   };
 
+  // Тестова функція для перевірки сервера
+  const testServerDirectly = async () => {
+    if (!testSpreadsheetId) {
+      addDebugLog('❌ Введіть Spreadsheet ID');
+      return;
+    }
+
+    try {
+      addDebugLog(`🔄 Запит до сервера: ${testSpreadsheetId}, ${testRange}`);
+      
+      const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          spreadsheetId: testSpreadsheetId, 
+          range: testRange 
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        addDebugLog(`✅ Отримано ${data.data.length} рядків`);
+        addDebugLog(`📊 Дані: ${JSON.stringify(data.data.slice(0, 3), null, 2)}...`);
+        
+        const formatted = formatSheetData(data.data);
+        addDebugLog(`📝 Форматовані дані:\n${formatted.substring(0, 500)}...`);
+      } else {
+        addDebugLog(`❌ Помилка: ${data.error}`);
+      }
+    } catch (error: any) {
+      addDebugLog(`❌ Помилка запиту: ${error.message}`);
+    }
+  };
+
   // Обробка tool calls від Gemini
   useEffect(() => {
     if (!client || !connected) return;
 
     const handleToolCall = async (toolCall: any) => {
-      console.log('Tool call received:', toolCall);
+      addDebugLog('📞 Tool call received: ' + JSON.stringify(toolCall));
 
       if (toolCall.functionCalls) {
         const responses = await Promise.all(
@@ -109,7 +151,7 @@ export default function KeynoteCompanion() {
               try {
                 const { spreadsheetId, range } = fc.args;
                 
-                console.log('Запит до Google Sheets:', { spreadsheetId, range });
+                addDebugLog(`🔄 Gemini запитує: ${spreadsheetId}, ${range}`);
                 
                 const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
                   method: 'POST',
@@ -119,24 +161,24 @@ export default function KeynoteCompanion() {
 
                 const data = await response.json();
                 
-                console.log('Відповідь від сервера:', data);
+                addDebugLog(`📥 Відповідь сервера: ${JSON.stringify(data).substring(0, 200)}`);
 
                 if (data.success && data.data) {
                   const formattedData = formatSheetData(data.data);
                   
-                  console.log('Форматовані дані:', formattedData);
+                  addDebugLog(`✅ Надсилаємо Gemini ${data.data.length} рядків`);
                   
-                  // ВИПРАВЛЕНА СТРУКТУРА: дані безпосередньо в response
                   return {
                     name: fc.name,
                     id: fc.id,
                     response: {
-                      output: formattedData,
-                      success: true,
-                      rowCount: data.data.length
+                      content: [{
+                        text: formattedData
+                      }]
                     },
                   };
                 } else {
+                  addDebugLog(`❌ Помилка: ${data.error}`);
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -147,7 +189,7 @@ export default function KeynoteCompanion() {
                   };
                 }
               } catch (error: any) {
-                console.error('Помилка читання таблиці:', error);
+                addDebugLog(`❌ Exception: ${error.message}`);
                 return {
                   name: fc.name,
                   id: fc.id,
@@ -162,7 +204,7 @@ export default function KeynoteCompanion() {
             if (fc.name === 'show_image') {
               try {
                 const { imageUrl } = fc.args;
-                console.log('Показуємо зображення:', imageUrl);
+                addDebugLog(`🖼️ Показуємо: ${imageUrl}`);
                 setCurrentImage(imageUrl);
                 
                 return {
@@ -174,7 +216,6 @@ export default function KeynoteCompanion() {
                   },
                 };
               } catch (error: any) {
-                console.error('Помилка показу зображення:', error);
                 return {
                   name: fc.name,
                   id: fc.id,
@@ -191,7 +232,7 @@ export default function KeynoteCompanion() {
         );
 
         const validResponses = responses.filter(r => r !== null);
-        console.log('Надсилаємо відповіді:', validResponses);
+        addDebugLog(`📤 Відправляємо відповідь: ${JSON.stringify(validResponses).substring(0, 200)}`);
         
         client.sendToolResponse({
           functionResponses: validResponses,
@@ -282,6 +323,105 @@ export default function KeynoteCompanion() {
             />
           </div>
         )}
+
+        {/* DEBUG PANEL */}
+        {debugMode && (
+          <div style={{
+            position: 'fixed',
+            bottom: 20,
+            right: 20,
+            width: '400px',
+            maxHeight: '500px',
+            backgroundColor: 'rgba(0,0,0,0.9)',
+            color: '#0f0',
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            padding: '15px',
+            borderRadius: '8px',
+            zIndex: 2000,
+            overflow: 'auto'
+          }}>
+            <div style={{ marginBottom: '10px', color: '#fff', fontWeight: 'bold' }}>
+              🔧 Debug Panel
+              <button 
+                onClick={() => setDebugLog([])}
+                style={{
+                  marginLeft: '10px',
+                  padding: '2px 8px',
+                  fontSize: '10px',
+                  background: '#444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '3px',
+                  cursor: 'pointer'
+                }}
+              >
+                Clear
+              </button>
+            </div>
+            
+            <div style={{ marginBottom: '15px' }}>
+              <input
+                type="text"
+                placeholder="Spreadsheet ID"
+                value={testSpreadsheetId}
+                onChange={(e) => setTestSpreadsheetId(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  marginBottom: '5px',
+                  background: '#222',
+                  color: '#0f0',
+                  border: '1px solid #444',
+                  borderRadius: '4px'
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Range (A1:Z100)"
+                value={testRange}
+                onChange={(e) => setTestRange(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  marginBottom: '5px',
+                  background: '#222',
+                  color: '#0f0',
+                  border: '1px solid #444',
+                  borderRadius: '4px'
+                }}
+              />
+              <button
+                onClick={testServerDirectly}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: '#0a0',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                Test Server
+              </button>
+            </div>
+
+            <div style={{ 
+              maxHeight: '300px', 
+              overflow: 'auto',
+              fontSize: '11px',
+              lineHeight: '1.4'
+            }}>
+              {debugLog.map((log, i) => (
+                <div key={i} style={{ marginBottom: '5px' }}>
+                  {log}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       
       <details className="info-overlay">
@@ -292,6 +432,21 @@ export default function KeynoteCompanion() {
           <p>
             Experimental model from Google DeepMind. Adapted for the service. Speaks many languages. On iOS, disable AVR.
           </p>
+          <button
+            onClick={() => setDebugMode(!debugMode)}
+            style={{
+              marginTop: '10px',
+              padding: '8px 16px',
+              background: debugMode ? '#f00' : '#0a0',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            {debugMode ? '🔴 Close Debug' : '🔧 Open Debug'}
+          </button>
         </div>
       </details>
     </>
