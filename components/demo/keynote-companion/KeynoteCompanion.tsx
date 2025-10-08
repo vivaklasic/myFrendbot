@@ -106,24 +106,6 @@ useEffect(() => {
   return result;
 };
 
-    const headers = values[0];
-    const rows = values.slice(1);
-
-    const formattedData = rows.map((row, index) => {
-      const rowData: Record<string, string> = {};
-      headers.forEach((header, i) => {
-        rowData[header] = row[i] || '';
-      });
-      return { rowNumber: index + 2, ...rowData };
-    });
-
-    return JSON.stringify({
-      headers: headers,
-      totalRows: rows.length,
-      data: formattedData
-    }, null, 2);
-  };
-
   // Тестова функція для перевірки сервера
   const testServerDirectly = async () => {
     if (!testSpreadsheetId) {
