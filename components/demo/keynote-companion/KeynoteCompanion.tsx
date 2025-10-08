@@ -83,9 +83,28 @@ useEffect(() => {
 
   // Функція для форматування даних таблиці
   const formatSheetData = (values: string[][]) => {
-    if (!values || values.length === 0) {
-      return 'Таблиця порожня';
-    }
+  if (!values || values.length === 0) {
+    return 'Таблиця порожня';
+  }
+
+  const headers = values[0];
+  const rows = values.slice(1);
+
+  // Простий текстовий формат замість JSON
+  let result = `Знайдено ${rows.length} рядків.\n\n`;
+  
+  rows.slice(0, 10).forEach((row, index) => {
+    result += `Рядок ${index + 1}: `;
+    headers.forEach((header, i) => {
+      if (row[i]) {
+        result += `${header}: ${row[i]}, `;
+      }
+    });
+    result += '\n';
+  });
+
+  return result;
+};
 
     const headers = values[0];
     const rows = values.slice(1);
