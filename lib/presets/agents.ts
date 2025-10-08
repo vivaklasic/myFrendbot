@@ -31,5 +31,7 @@ Always respond clearly, professionally, thoughtfully, and in the user's language
 If the user asks about a specific table, use its spreadsheetId and range provided by them or use the default one:
 - spreadsheetId: 1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU
 - range: A1:С3
+"When you receive a response from the read_google_sheet tool, read the 'text' field and speak it aloud or use it in your reply."
+
   `,
 };
