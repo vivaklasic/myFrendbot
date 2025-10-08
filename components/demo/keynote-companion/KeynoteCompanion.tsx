@@ -24,62 +24,62 @@ export default function KeynoteCompanion() {
   };
 
   // Set the configuration for the Live API
-  useEffect(() => {
-    setConfig({
-      responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: current.voice },
-        },
+  // Set the configuration for the Live API
+useEffect(() => {
+  setConfig({
+    responseModalities: [Modality.AUDIO],
+    speechConfig: {
+      voiceConfig: {
+        prebuiltVoiceConfig: { voiceName: current.voice },
       },
-      systemInstruction: {
-        parts: [
+    },
+    systemInstruction: {
+      parts: [
+        {
+          text: "When user asks about trees or spreadsheet, FIRST call read_google_sheet(spreadsheetId='1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU', range='A1:Z100'), THEN answer based on data received."
+        },
+      ],
+    },
+    tools: [
+      {
+        functionDeclarations: [
           {
-            text: createSystemInstructions(current, user) + 
-              "\n\nIMPORTANT: You do NOT have direct access to any spreadsheets or documents. When user asks about spreadsheet data, you MUST use the read_google_sheet tool. NEVER make up or assume spreadsheet content. Always say 'Let me read the spreadsheet' and call the read_google_sheet function with the spreadsheetId and range provided by the user."
+            name: 'read_google_sheet',
+            description: 'Read spreadsheet data. Call this immediately when user mentions trees or spreadsheet.',
+            parameters: {
+              type: 'OBJECT',
+              properties: {
+                spreadsheetId: {
+                  type: 'STRING',
+                  description: 'Spreadsheet ID',
+                },
+                range: {
+                  type: 'STRING',
+                  description: 'Range like A1:Z100',
+                },
+              },
+              required: ['spreadsheetId', 'range'],
+            },
+          },
+          {
+            name: 'show_image',
+            description: 'Show image from URL',
+            parameters: {
+              type: 'OBJECT',
+              properties: {
+                imageUrl: {
+                  type: 'STRING',
+                  description: 'Image URL',
+                },
+              },
+              required: ['imageUrl'],
+            },
           },
         ],
       },
-      tools: [
-        {
-          functionDeclarations: [
-            {
-              name: 'read_google_sheet',
-              description: 'REQUIRED: Read data from Google Sheets. You must call this when user asks about trees or spreadsheet data. Never assume you know the data.',
-              parameters: {
-                type: 'OBJECT',
-                properties: {
-                  spreadsheetId: {
-                    type: 'STRING',
-                    description: 'The Google Sheets spreadsheet ID',
-                  },
-                  range: {
-                    type: 'STRING',
-                    description: 'The range to read, e.g. "trees!A1:C100"',
-                  },
-                },
-                required: ['spreadsheetId', 'range'],
-              },
-            },
-            {
-              name: 'show_image',
-              description: 'Display an image on the canvas. Use this when the spreadsheet data contains image URLs and you want to show them to the user.',
-              parameters: {
-                type: 'OBJECT',
-                properties: {
-                  imageUrl: {
-                    type: 'STRING',
-                    description: 'The URL of the image to display',
-                  },
-                },
-                required: ['imageUrl'],
-              },
-            },
-          ],
-        },
-      ],
-    });
-  }, [setConfig, user, current]);
+    ],
+  });
+}, [setConfig, user, current]);
 
   // Функція для форматування даних таблиці
   const formatSheetData = (values: string[][]) => {
