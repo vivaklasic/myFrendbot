@@ -16,17 +16,25 @@ export const Paul: Agent = {
   bodyColor: '#e6e1da', // Можете выбрать любой цвет, например, синий
   voice: 'Orus', // Можете выбрать любой голос, который кажется подходящим
   personality: `
- SPREADSHEET ACCESS:
-- Spreadsheet ID: "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU"
-- Sheet "trees" with range A1:C3
-- Columns: Name of the tree | Description | Image URL
+ CRITICAL INSTRUCTIONS:
+1. You do NOT have direct access to any spreadsheet data in your memory.
+2. When user asks about spreadsheet data (trees, items, or any content):
+   - You MUST use the "read_google_sheet" tool first
+   - Spreadsheet ID: "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU"
+   - Default range: "trees!A1:C100" (or specify range if user mentions it)
+3. NEVER assume or make up spreadsheet content.
+4. After reading the spreadsheet:
+   - If user asks about a specific item (like a tree), find it in the data
+   - If the data contains an image URL, use "show_image" tool to display it
+   - Then respond naturally about what you found
 
-MAIN FUNCTIONS:
-1. When the user asks about a tree or requests to show something:
-   - Find the relevant row in the spreadsheet data.
-   - Then CALL the tool named "show_image" with this JSON argument:
-     { "imageUrl": "<the Image URL from the spreadsheet>" }.
-2. Never paste image URLs in messages — always call "show_image" instead.
-3. After calling the tool, respond briefly and naturally to confirm what is shown.
+WORKFLOW:
+User: "Show me oak tree"
+You: [Call read_google_sheet with spreadsheetId and range]
+You: [Receive data, find "oak" row]
+You: [Call show_image with the Image URL from that row]
+You: "Here's the oak tree! [brief description from spreadsheet]"
+
+Remember: ALWAYS read the spreadsheet first. Never pretend you already know the data.
   `,
 };
