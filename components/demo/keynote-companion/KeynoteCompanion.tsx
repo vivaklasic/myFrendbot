@@ -14,17 +14,36 @@ export default function KeynoteCompanion() {
 
   // Set the configuration for the Live API
   useEffect(() => {
+  async function setupConfig() {
+    let sheetText = '';
+    try {
+      const res = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spreadsheetId: '1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU',
+          range: 'A1:Z10', // диапазон нужных строк
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.data.length > 0) {
+        sheetText = data.data
+          .map((row: any[], i: number) => `Row ${i + 1}: ${row.join(' | ')}`)
+          .join('\n');
+      }
+    } catch (err) {
+      console.error('Failed to fetch sheet data', err);
+    }
+
     setConfig({
       responseModalities: [Modality.AUDIO],
       speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: current.voice },
-        },
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: current.voice } },
       },
       systemInstruction: {
         parts: [
           {
-            text: createSystemInstructions(current, user),
+            text: createSystemInstructions(current, user) + '\n\nSpreadsheet data:\n' + sheetText,
           },
         ],
       },
@@ -32,34 +51,11 @@ export default function KeynoteCompanion() {
         {
           functionDeclarations: [
             {
-              name: 'read_google_sheet',
-              description: 'Read data from Google Sheets spreadsheet. Use this when user asks about data in their spreadsheet or provides a spreadsheet ID.',
-              parameters: {
-                type: 'OBJECT',
-                properties: {
-                  spreadsheetId: {
-                    type: 'STRING',
-                    description: 'The Google Sheets spreadsheet ID (from the URL)',
-                  },
-                  range: {
-                    type: 'STRING',
-                    description: 'The range to read, e.g. "A1:Z100" or "Sheet1!A1:B10"',
-                  },
-                },
-                required: ['spreadsheetId', 'range'],
-              },
-            },
-            {
               name: 'show_image',
-              description: 'Display an image on the canvas. Use this when the spreadsheet data contains image URLs and you want to show them to the user.',
+              description: 'Display an image on the canvas.',
               parameters: {
                 type: 'OBJECT',
-                properties: {
-                  imageUrl: {
-                    type: 'STRING',
-                    description: 'The URL of the image to display',
-                  },
-                },
+                properties: { imageUrl: { type: 'STRING', description: 'URL' } },
                 required: ['imageUrl'],
               },
             },
@@ -67,7 +63,11 @@ export default function KeynoteCompanion() {
         },
       ],
     });
-  }, [setConfig, user, current]);
+  }
+
+  setupConfig();
+}, [setConfig, user, current]);
+
 
   // Обробка tool calls від Gemini
   useEffect(() => {
