@@ -11,25 +11,19 @@ export default function KeynoteCompanion() {
   const user = useUser();
   const { current } = useAgent();
   const [currentImage, setCurrentImage] = useState<string | null>(null);
-  const [status, setStatus] = useState<string>('🟡 Waiting for connection...');
 
-  // 🧩 Тест — показать картинку через 3 секунды
+  // ТЕСТ: автоматично показати зображення через 3 секунди після завантаження
   useEffect(() => {
     const timer = setTimeout(() => {
-      console.log('🧪 TEST: Showing local test image');
+      console.log('TEST: Setting test image');
       setCurrentImage('https://picsum.photos/400/300');
     }, 3000);
     return () => clearTimeout(timer);
   }, []);
 
-  // ⚙️ Конфигурация Live API
+  // Set the configuration for the Live API
   useEffect(() => {
     async function setupConfig() {
-      if (!connected || !client) {
-        setStatus('⚠️ Not connected to Live API');
-        return;
-      }
-
       let sheetText = '';
       try {
         const res = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
@@ -47,110 +41,88 @@ export default function KeynoteCompanion() {
             .join('\n');
         }
       } catch (err) {
-        console.error('❌ Failed to fetch sheet data', err);
+        console.error('Failed to fetch sheet data', err);
       }
 
-      try {
-        await setConfig({
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: current.voice } },
-          },
-          systemInstruction: {
-            parts: [
+      setConfig({
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: current.voice } },
+        },
+        systemInstruction: {
+          parts: [
+            {
+              text: createSystemInstructions(current, user) + 
+                '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
+                '- You MUST use the show_image function to display images\n' +
+                '- When you find an image URL in the spreadsheet, immediately call show_image with that URL\n' +
+                '- The show_image function is available and working\n' +
+                '- Always use complete URLs starting with http:// or https://\n\n' +
+                'Spreadsheet data:\n' + sheetText,
+            },
+          ],
+        },
+        tools: [
+          {
+            functionDeclarations: [
               {
-                text:
-                  createSystemInstructions(current, user) +
-                  '\n\n**IMPORTANT:**\n' +
-                  '- Use the show_image function to display images.\n' +
-                  '- Always call show_image(imageUrl) when image is found.\n' +
-                  '- Only use full URLs starting with http/https.\n\n' +
-                  'Spreadsheet data:\n' +
-                  sheetText,
+                name: 'read_google_sheet',
+                description: 'Read data from a Google Sheet. Returns the data as text and structured array.',
+                parameters: {
+                  type: 'OBJECT',
+                  properties: {
+                    spreadsheetId: { 
+                      type: 'STRING', 
+                      description: 'Google Sheets spreadsheet ID' 
+                    },
+                    range: { 
+                      type: 'STRING', 
+                      description: 'Cell range like A1:Z10' 
+                    }
+                  },
+                  required: ['spreadsheetId', 'range'],
+                },
+              },
+              {
+                name: 'show_image',
+                description: 'CRITICAL TOOL: Display an image on screen. You MUST call this function whenever you find an image URL in spreadsheet data. This function works and is available to you. Example: show_image({imageUrl: "https://example.com/photo.jpg"})',
+                parameters: {
+                  type: 'OBJECT',
+                  properties: { 
+                    imageUrl: { 
+                      type: 'STRING', 
+                      description: 'Complete image URL starting with http:// or https:// (e.g., https://example.com/image.jpg)'
+                    } 
+                  },
+                  required: ['imageUrl'],
+                },
               },
             ],
           },
-          tools: [
-            {
-              name: 'read_google_sheet',
-              description:
-                'Reads data from a Google Sheet and returns structured output.',
-              parameters: {
-                type: 'object',
-                properties: {
-                  spreadsheetId: { type: 'string' },
-                  range: { type: 'string' },
-                },
-                required: ['spreadsheetId', 'range'],
-              },
-            },
-            {
-              name: 'show_image',
-              description: 'Display an image in the UI.',
-              parameters: {
-                type: 'object',
-                properties: {
-                  imageUrl: { type: 'string' },
-                },
-                required: ['imageUrl'],
-              },
-            },
-          ],
-        });
-
-        setStatus('✅ Config applied successfully');
-      } catch (err) {
-        console.error('❌ Error setting Live API config', err);
-        setStatus('❌ Config failed');
-      }
+        ],
+      });
     }
 
     setupConfig();
-  }, [setConfig, connected, client, current, user]);
+  }, [setConfig, user, current]);
 
-  // 🧰 Обработка вызовов инструментов (tools)
+  // Обробка tool calls від Gemini
   useEffect(() => {
     if (!client || !connected) return;
 
     const handleToolCall = async (toolCall: any) => {
-      console.log('🧩 Tool call received:', toolCall);
+      console.log('🔧 Tool call received:', toolCall);
+      console.log('🔧 Function calls:', toolCall.functionCalls);
 
       if (toolCall.functionCalls) {
         const responses = await Promise.all(
           toolCall.functionCalls.map(async (fc: any) => {
-            console.log(`⚙️ Processing function: ${fc.name}`, fc.args);
-
-            if (fc.name === 'show_image') {
-              const imageUrl = fc.args?.imageUrl || fc.args?.url;
-              if (!imageUrl) {
-                console.error('❌ show_image: no imageUrl provided');
-                return {
-                  name: fc.name,
-                  id: fc.id,
-                  response: {
-                    result: { success: false, error: 'Missing imageUrl' },
-                  },
-                };
-              }
-
-              console.log('🖼️ show_image →', imageUrl);
-              setCurrentImage(imageUrl);
-
-              return {
-                name: fc.name,
-                id: fc.id,
-                response: {
-                  result: {
-                    success: true,
-                    message: `Image displayed: ${imageUrl}`,
-                  },
-                },
-              };
-            }
-
+            console.log('📞 Processing function:', fc.name, 'with args:', fc.args);
+            
             if (fc.name === 'read_google_sheet') {
               try {
                 const { spreadsheetId, range } = fc.args;
+
                 const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -160,24 +132,108 @@ export default function KeynoteCompanion() {
                 const data = await response.json();
                 console.log('📊 Sheet data received:', data);
 
+                if (data.success && data.data) {
+                  const formattedText = data.data.map((row: any[], i: number) => {
+                    return `Row ${i + 1}: ${row.join(' | ')}`;
+                  }).join('\n');
+
+                  return {
+                    name: fc.name,
+                    id: fc.id,
+                    response: {
+                      result: {
+                        success: true,
+                        data: data.data,
+                        text: formattedText,
+                        rowCount: data.data.length,
+                        columnCount: data.data[0]?.length || 0,
+                      },
+                    },
+                  };
+                } else {
+                  return {
+                    name: fc.name,
+                    id: fc.id,
+                    response: {
+                      result: {
+                        success: false,
+                        error: data.error || 'Failed to read spreadsheet',
+                      },
+                    },
+                  };
+                }
+              } catch (error: any) {
+                return {
+                  name: fc.name,
+                  id: fc.id,
+                  response: {
+                    result: {
+                      success: false,
+                      error: error.message,
+                    },
+                  },
+                };
+              }
+            }
+
+            if (fc.name === 'show_image') {
+              try {
+                const imageUrl = fc.args?.imageUrl || fc.args?.url;
+                console.log('🖼️ SHOW_IMAGE called with URL:', imageUrl);
+                console.log('🖼️ Full args:', JSON.stringify(fc.args));
+                
+                if (!imageUrl) {
+                  console.error('❌ No imageUrl in args:', fc.args);
+                  return {
+                    name: fc.name,
+                    id: fc.id,
+                    response: {
+                      result: {
+                        success: false,
+                        error: 'No image URL provided',
+                      },
+                    },
+                  };
+                }
+
+                if (!imageUrl.startsWith('http')) {
+                  console.error('❌ Invalid URL format:', imageUrl);
+                  return {
+                    name: fc.name,
+                    id: fc.id,
+                    response: {
+                      result: {
+                        success: false,
+                        error: 'URL must start with http:// or https://',
+                      },
+                    },
+                  };
+                }
+                
+                console.log('✅ Setting image URL:', imageUrl);
+                setCurrentImage(imageUrl);
+                
                 return {
                   name: fc.name,
                   id: fc.id,
                   response: {
                     result: {
                       success: true,
-                      data: data.data,
-                      text: data.data.map((r: any[], i: number) => `Row ${i + 1}: ${r.join(' | ')}`).join('\n'),
+                      message: `Image displayed successfully: ${imageUrl}`,
+                      displayedUrl: imageUrl,
                     },
                   },
                 };
-              } catch (err: any) {
-                console.error('❌ Sheet read failed', err);
+              } catch (error: any) {
+                console.error('❌ Image display error:', error);
                 return {
                   name: fc.name,
                   id: fc.id,
                   response: {
-                    result: { success: false, error: err.message },
+                    result: {
+                      success: false,
+                      error: error.message,
+                    },
                   },
                 };
               }
@@ -187,95 +243,100 @@ export default function KeynoteCompanion() {
           })
         );
 
-        const validResponses = responses.filter(Boolean);
-        client.sendToolResponse({ functionResponses: validResponses });
+        const validResponses = responses.filter(r => r !== null);
+        console.log('📤 Sending tool responses:', validResponses);
+
+        client.sendToolResponse({
+          functionResponses: validResponses,
+        });
       }
     };
 
     client.on('toolcall', handleToolCall);
-    return () => client.off('toolcall', handleToolCall);
+
+    return () => {
+      client.off('toolcall', handleToolCall);
+    };
   }, [client, connected]);
 
-  // 🧱 UI
   return (
     <>
-      {/* 🖼️ Оверлей изображения */}
+      {/* Зображення ПОВЕРХ усього */}
       {currentImage && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.8)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          onClick={() => setCurrentImage(null)}
-        >
+        <>
           <div
+            onClick={() => setCurrentImage(null)}
             style={{
-              position: 'relative',
-              background: '#fff',
-              borderRadius: '12px',
-              maxWidth: '90vw',
-              maxHeight: '80vh',
-              overflow: 'hidden',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.8)',
+              zIndex: 9999
             }}
-          >
+          />
+          
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '90vw',
+            maxWidth: '600px',
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            zIndex: 10000,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            padding: '20px'
+          }}>
             <button
               onClick={() => setCurrentImage(null)}
               style={{
                 position: 'absolute',
-                top: 8,
-                right: 8,
-                background: '#000',
-                color: '#fff',
+                top: '10px',
+                right: '10px',
+                background: 'black',
+                color: 'white',
                 border: 'none',
                 borderRadius: '50%',
-                width: 32,
-                height: 32,
-                fontSize: 18,
+                width: '40px',
+                height: '40px',
                 cursor: 'pointer',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                zIndex: 10001
               }}
             >
               ×
             </button>
-            <img
-              src={currentImage}
-              alt="Displayed content"
+            <img 
+              src={currentImage} 
+              alt="Content"
               style={{
-                display: 'block',
                 width: '100%',
                 height: 'auto',
+                maxHeight: '80vh',
                 objectFit: 'contain',
+                display: 'block'
               }}
             />
           </div>
-        </div>
+        </>
       )}
-
-      {/* 🧠 Основной блок */}
-      <div
-        className="keynote-companion"
-        style={{
-          position: 'relative',
-          zIndex: currentImage ? 1 : 100,
-        }}
-      >
+      
+      <div className="keynote-companion">
         <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
       </div>
-
-      {/* ℹ️ Информация + статус */}
+      
       <details className="info-overlay">
         <summary className="info-button">
           <span className="icon">info</span>
         </summary>
         <div className="info-text">
-          <p>{status}</p>
           <p>
-            Experimental model (Google DeepMind). Speaks multiple languages.
-            Disable AVR on iOS if issues occur.
+            Experimental model from Google DeepMind. Adapted for the service. Speaks many languages. On iOS, disable AVR.
           </p>
         </div>
       </details>
