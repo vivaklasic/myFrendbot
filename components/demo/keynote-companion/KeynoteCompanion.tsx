@@ -102,6 +102,7 @@ export default function KeynoteCompanion() {
     },
   ],
 });
+   }   
 
     setupConfig();
   }, [setConfig, user, current]);
