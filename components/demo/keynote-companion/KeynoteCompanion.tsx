@@ -62,42 +62,41 @@ export default function KeynoteCompanion() {
             },
           ],
         },
-        tools: [
-          {
-            functionDeclarations: [
-              {
-                name: 'read_google_sheet',
-                description: 'Read data from a Google Sheet. Returns the data as text and structured array.',
-                parameters: {
-                  type: 'object',
-                  properties: {
-                    spreadsheetId: { 
-                      type: 'string', 
-                      description: 'Google Sheets spreadsheet ID' 
-                    },
-                    range: { 
-                      type: 'string', 
-                      description: 'Cell range like A1:Z10' 
-                    }
-                  },
-                  required: ['spreadsheetId', 'range'],
-                },
-              },
-              {
-                name: 'show_image',
-                description: 'CRITICAL TOOL: Display an image on screen. You MUST call this function whenever you find an image URL in spreadsheet data. This function works and is available to you. Example: show_image({imageUrl: "https://example.com/photo.jpg"})',
-                parameters: {
-                  type: 'object',
-                  properties: { 
-                    imageUrl: { 
-                      type: 'string', 
-                      description: 'Complete image URL starting with http:// or https:// (e.g., https://example.com/image.jpg)'
-                    } 
-                  },
-                  required: ['imageUrl'],
-                },
-              },
-            ],
+       tools: [
+  {
+    name: 'read_google_sheet',
+    description: 'Read data from a Google Sheet. Returns the data as text and structured array.',
+    parameters: {
+      type: 'object',
+      properties: {
+        spreadsheetId: { 
+          type: 'string', 
+          description: 'Google Sheets spreadsheet ID' 
+        },
+        range: { 
+          type: 'string', 
+          description: 'Cell range like A1:Z10' 
+        }
+      },
+      required: ['spreadsheetId', 'range'],
+    },
+  },
+  {
+    name: 'show_image',
+    description: 'CRITICAL TOOL: Display an image on screen...',
+    parameters: {
+      type: 'object',
+      properties: { 
+        imageUrl: { 
+          type: 'string', 
+          description: 'Complete image URL starting with http:// or https://' 
+        } 
+      },
+      required: ['imageUrl'],
+    },
+  },
+],
+
           },
         ],
       });
