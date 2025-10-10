@@ -62,7 +62,7 @@ export default function KeynoteCompanion() {
             },
           ],
         },
-       tools: [
+  tools: [
   {
     name: 'read_google_sheet',
     description: 'Read data from a Google Sheet. Returns the data as text and structured array.',
