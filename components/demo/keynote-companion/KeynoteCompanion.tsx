@@ -45,62 +45,63 @@ export default function KeynoteCompanion() {
       }
 
       setConfig({
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: current.voice } },
-        },
-        systemInstruction: {
-          parts: [
-            {
-              text: createSystemInstructions(current, user) + 
-                '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
-                '- You MUST use the show_image function to display images\n' +
-                '- When you find an image URL in the spreadsheet, immediately call show_image with that URL\n' +
-                '- The show_image function is available and working\n' +
-                '- Always use complete URLs starting with http:// or https://\n\n' +
-                'Spreadsheet data:\n' + sheetText,
-            },
-          ],
-        },
+  responseModalities: [Modality.AUDIO],
+  speechConfig: {
+    voiceConfig: { prebuiltVoiceConfig: { voiceName: current.voice } },
+  },
+  systemInstruction: {
+    parts: [
+      {
+        text:
+          createSystemInstructions(current, user) +
+          '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
+          '- You MUST use the show_image function to display images\n' +
+          '- When you find an image URL in the spreadsheet, immediately call show_image with that URL\n' +
+          '- The show_image function is available and working\n' +
+          '- Always use complete URLs starting with http:// or https://\n\n' +
+          'Spreadsheet data:\n' +
+          sheetText,
+      },
+    ],
+  },
   tools: [
-  {
-    name: 'read_google_sheet',
-    description: 'Read data from a Google Sheet. Returns the data as text and structured array.',
-    parameters: {
-      type: 'object',
-      properties: {
-        spreadsheetId: { 
-          type: 'string', 
-          description: 'Google Sheets spreadsheet ID' 
-        },
-        range: { 
-          type: 'string', 
-          description: 'Cell range like A1:Z10' 
-        }
-      },
-      required: ['spreadsheetId', 'range'],
-    },
-  },
-  {
-    name: 'show_image',
-    description: 'CRITICAL TOOL: Display an image on screen...',
-    parameters: {
-      type: 'object',
-      properties: { 
-        imageUrl: { 
-          type: 'string', 
-          description: 'Complete image URL starting with http:// or https://' 
-        } 
-      },
-      required: ['imageUrl'],
-    },
-  },
-],
-
+    {
+      name: 'read_google_sheet',
+      description:
+        'Read data from a Google Sheet. Returns the data as text and structured array.',
+      parameters: {
+        type: 'object',
+        properties: {
+          spreadsheetId: {
+            type: 'string',
+            description: 'Google Sheets spreadsheet ID',
           },
-        ],
-      });
-    }
+          range: {
+            type: 'string',
+            description: 'Cell range like A1:Z10',
+          },
+        },
+        required: ['spreadsheetId', 'range'],
+      },
+    },
+    {
+      name: 'show_image',
+      description:
+        'CRITICAL TOOL: Display an image on screen. You MUST call this function whenever you find an image URL in spreadsheet data.',
+      parameters: {
+        type: 'object',
+        properties: {
+          imageUrl: {
+            type: 'string',
+            description:
+              'Complete image URL starting with http:// or https://',
+          },
+        },
+        required: ['imageUrl'],
+      },
+    },
+  ],
+});
 
     setupConfig();
   }, [setConfig, user, current]);
