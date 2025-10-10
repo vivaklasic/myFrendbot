@@ -90,7 +90,7 @@ export default function KeynoteCompanion() {
                   type: 'object',
                   properties: { 
                     imageUrl: { 
-                      type: 'STRING', 
+                      type: 'string', 
                       description: 'Complete image URL starting with http:// or https:// (e.g., https://example.com/image.jpg)'
                     } 
                   },
