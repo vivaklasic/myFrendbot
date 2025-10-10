@@ -12,6 +12,15 @@ export default function KeynoteCompanion() {
   const { current } = useAgent();
   const [currentImage, setCurrentImage] = useState<string | null>(null);
 
+  // ТЕСТ: автоматично показати зображення через 3 секунди після завантаження
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      console.log('TEST: Setting test image');
+      setCurrentImage('https://picsum.photos/400/300');
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Set the configuration for the Live API
   useEffect(() => {
     async function setupConfig() {
@@ -201,10 +210,8 @@ export default function KeynoteCompanion() {
                   };
                 }
                 
-                // Використовуємо proxy для обходу CORS та hotlink protection
-                const proxiedUrl = `https://images.weserv.nl/?url=${encodeURIComponent(imageUrl)}`;
-                console.log('✅ Setting proxied image URL:', proxiedUrl);
-                setCurrentImage(proxiedUrl);
+                console.log('✅ Setting image URL:', imageUrl);
+                setCurrentImage(imageUrl);
                 
                 return {
                   name: fc.name,
@@ -213,7 +220,7 @@ export default function KeynoteCompanion() {
                     result: {
                       success: true,
                       message: `Image displayed successfully: ${imageUrl}`,
-                      displayedUrl: proxiedUrl,
+                      displayedUrl: imageUrl,
                     },
                   },
                 };
