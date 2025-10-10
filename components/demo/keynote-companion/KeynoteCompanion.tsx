@@ -52,7 +52,13 @@ export default function KeynoteCompanion() {
         systemInstruction: {
           parts: [
             {
-              text: createSystemInstructions(current, user) + '\n\nSpreadsheet data:\n' + sheetText,
+              text: createSystemInstructions(current, user) + 
+                '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
+                '- You MUST use the show_image function to display images\n' +
+                '- When you find an image URL in the spreadsheet, immediately call show_image with that URL\n' +
+                '- The show_image function is available and working\n' +
+                '- Always use complete URLs starting with http:// or https://\n\n' +
+                'Spreadsheet data:\n' + sheetText,
             },
           ],
         },
@@ -79,13 +85,13 @@ export default function KeynoteCompanion() {
               },
               {
                 name: 'show_image',
-                description: 'Display an image on the canvas. Use this after reading image URLs from the spreadsheet.',
+                description: 'CRITICAL TOOL: Display an image on screen. You MUST call this function whenever you find an image URL in spreadsheet data. This function works and is available to you. Example: show_image({imageUrl: "https://example.com/photo.jpg"})',
                 parameters: {
                   type: 'OBJECT',
                   properties: { 
                     imageUrl: { 
                       type: 'STRING', 
-                      description: 'Full HTTP/HTTPS URL of the image to display' 
+                      description: 'Complete image URL starting with http:// or https:// (e.g., https://example.com/image.jpg)'
                     } 
                   },
                   required: ['imageUrl'],
@@ -94,7 +100,7 @@ export default function KeynoteCompanion() {
             ],
           },
         ],
-      }); // ← ЦЕ БУЛО НЕ ЗАКРИТО!
+      });
     }
 
     setupConfig();
@@ -105,11 +111,14 @@ export default function KeynoteCompanion() {
     if (!client || !connected) return;
 
     const handleToolCall = async (toolCall: any) => {
-      console.log('Tool call received:', toolCall);
+      console.log('🔧 Tool call received:', toolCall);
+      console.log('🔧 Function calls:', toolCall.functionCalls);
 
       if (toolCall.functionCalls) {
         const responses = await Promise.all(
           toolCall.functionCalls.map(async (fc: any) => {
+            console.log('📞 Processing function:', fc.name, 'with args:', fc.args);
+            
             if (fc.name === 'read_google_sheet') {
               try {
                 const { spreadsheetId, range } = fc.args;
@@ -121,7 +130,7 @@ export default function KeynoteCompanion() {
                 });
 
                 const data = await response.json();
-                console.log('Sheet data received:', data);
+                console.log('📊 Sheet data received:', data);
 
                 if (data.success && data.data) {
                   const formattedText = data.data.map((row: any[], i: number) => {
@@ -170,22 +179,38 @@ export default function KeynoteCompanion() {
             if (fc.name === 'show_image') {
               try {
                 const imageUrl = fc.args?.imageUrl || fc.args?.url;
-                console.log('Showing image:', imageUrl);
+                console.log('🖼️ SHOW_IMAGE called with URL:', imageUrl);
+                console.log('🖼️ Full args:', JSON.stringify(fc.args));
                 
-                if (!imageUrl || !imageUrl.startsWith('http')) {
-                  console.error('Invalid image URL:', imageUrl);
+                if (!imageUrl) {
+                  console.error('❌ No imageUrl in args:', fc.args);
                   return {
                     name: fc.name,
                     id: fc.id,
                     response: {
                       result: {
                         success: false,
-                        error: 'Invalid image URL provided',
+                        error: 'No image URL provided',
+                      },
+                    },
+                  };
+                }
+
+                if (!imageUrl.startsWith('http')) {
+                  console.error('❌ Invalid URL format:', imageUrl);
+                  return {
+                    name: fc.name,
+                    id: fc.id,
+                    response: {
+                      result: {
+                        success: false,
+                        error: 'URL must start with http:// or https://',
                       },
                     },
                   };
                 }
                 
+                console.log('✅ Setting image URL:', imageUrl);
                 setCurrentImage(imageUrl);
                 
                 return {
@@ -194,12 +219,13 @@ export default function KeynoteCompanion() {
                   response: {
                     result: {
                       success: true,
-                      message: `Image displayed: ${imageUrl}`,
+                      message: `Image displayed successfully: ${imageUrl}`,
+                      displayedUrl: imageUrl,
                     },
                   },
                 };
               } catch (error: any) {
-                console.error('Image display error:', error);
+                console.error('❌ Image display error:', error);
                 return {
                   name: fc.name,
                   id: fc.id,
@@ -217,8 +243,11 @@ export default function KeynoteCompanion() {
           })
         );
 
+        const validResponses = responses.filter(r => r !== null);
+        console.log('📤 Sending tool responses:', validResponses);
+
         client.sendToolResponse({
-          functionResponses: responses.filter(r => r !== null),
+          functionResponses: validResponses,
         });
       }
     };
