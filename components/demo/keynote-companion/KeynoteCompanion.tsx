@@ -69,14 +69,14 @@ export default function KeynoteCompanion() {
                 name: 'read_google_sheet',
                 description: 'Read data from a Google Sheet. Returns the data as text and structured array.',
                 parameters: {
-                  type: 'OBJECT',
+                  type: 'object',
                   properties: {
                     spreadsheetId: { 
-                      type: 'STRING', 
+                      type: 'string', 
                       description: 'Google Sheets spreadsheet ID' 
                     },
                     range: { 
-                      type: 'STRING', 
+                      type: 'string', 
                       description: 'Cell range like A1:Z10' 
                     }
                   },
@@ -87,7 +87,7 @@ export default function KeynoteCompanion() {
                 name: 'show_image',
                 description: 'CRITICAL TOOL: Display an image on screen. You MUST call this function whenever you find an image URL in spreadsheet data. This function works and is available to you. Example: show_image({imageUrl: "https://example.com/photo.jpg"})',
                 parameters: {
-                  type: 'OBJECT',
+                  type: 'object',
                   properties: { 
                     imageUrl: { 
                       type: 'STRING', 
