@@ -11,13 +11,11 @@ export default function KeynoteCompanion() {
   const user = useUser();
   const { current } = useAgent();
   const [currentImage, setCurrentImage] = useState<string | null>(null);
-  const [debugLog, setDebugLog] = useState<string[]>([]);
 
   // ТЕСТ: автоматично показати зображення через 3 секунди після завантаження
   useEffect(() => {
     const timer = setTimeout(() => {
       console.log('TEST: Setting test image');
-      setDebugLog(prev => [...prev, 'TEST: Auto-showing image after 3s']);
       setCurrentImage('https://picsum.photos/400/300');
     }, 3000);
     return () => clearTimeout(timer);
@@ -26,6 +24,26 @@ export default function KeynoteCompanion() {
   // Set the configuration for the Live API
   useEffect(() => {
     async function setupConfig() {
+      let sheetText = '';
+      try {
+        const res = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            spreadsheetId: '1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU',
+            range: 'A1:Z10',
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.data.length > 0) {
+          sheetText = data.data
+            .map((row: any[], i: number) => `Row ${i + 1}: ${row.join(' | ')}`)
+            .join('\n');
+        }
+      } catch (err) {
+        console.error('Failed to fetch sheet data', err);
+      }
+
       setConfig({
         responseModalities: [Modality.AUDIO],
         speechConfig: {
@@ -35,8 +53,12 @@ export default function KeynoteCompanion() {
           parts: [
             {
               text: createSystemInstructions(current, user) + 
-                '\n\nSpreadsheet ID: 1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU\n' +
-                'Range: A1:Z10',
+                '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
+                '- You MUST use the show_image function to display images\n' +
+                '- When you find an image URL in the spreadsheet, immediately call show_image with that URL\n' +
+                '- The show_image function is available and working\n' +
+                '- Always use complete URLs starting with http:// or https://\n\n' +
+                'Spreadsheet data:\n' + sheetText,
             },
           ],
         },
@@ -63,13 +85,13 @@ export default function KeynoteCompanion() {
               },
               {
                 name: 'show_image',
-                description: 'Display an image on the screen. Call this function when you have an image URL to show.',
+                description: 'CRITICAL TOOL: Display an image on screen. You MUST call this function whenever you find an image URL in spreadsheet data. This function works and is available to you. Example: show_image({imageUrl: "https://example.com/photo.jpg"})',
                 parameters: {
                   type: 'OBJECT',
                   properties: { 
                     imageUrl: { 
                       type: 'STRING', 
-                      description: 'Full URL of the image to display (must start with http:// or https://)'
+                      description: 'Complete image URL starting with http:// or https:// (e.g., https://example.com/image.jpg)'
                     } 
                   },
                   required: ['imageUrl'],
@@ -89,15 +111,13 @@ export default function KeynoteCompanion() {
     if (!client || !connected) return;
 
     const handleToolCall = async (toolCall: any) => {
-      console.log('🔧 Tool call received:', JSON.stringify(toolCall, null, 2));
-      
-      setDebugLog(prev => [...prev, `Tool: ${toolCall.functionCalls?.map((f: any) => f.name).join(', ')}`]);
+      console.log('🔧 Tool call received:', toolCall);
+      console.log('🔧 Function calls:', toolCall.functionCalls);
 
       if (toolCall.functionCalls) {
         const responses = await Promise.all(
           toolCall.functionCalls.map(async (fc: any) => {
-            console.log('📞 Function:', fc.name);
-            setDebugLog(prev => [...prev, `📞 ${fc.name}`]);
+            console.log('📞 Processing function:', fc.name, 'with args:', fc.args);
             
             if (fc.name === 'read_google_sheet') {
               try {
@@ -110,8 +130,7 @@ export default function KeynoteCompanion() {
                 });
 
                 const data = await response.json();
-                console.log('📊 Sheet data:', data);
-                setDebugLog(prev => [...prev, `✅ Read ${data.data?.length || 0} rows`]);
+                console.log('📊 Sheet data received:', data);
 
                 if (data.success && data.data) {
                   const formattedText = data.data.map((row: any[], i: number) => {
@@ -144,7 +163,6 @@ export default function KeynoteCompanion() {
                   };
                 }
               } catch (error: any) {
-                setDebugLog(prev => [...prev, `❌ Error: ${error.message}`]);
                 return {
                   name: fc.name,
                   id: fc.id,
@@ -161,12 +179,11 @@ export default function KeynoteCompanion() {
             if (fc.name === 'show_image') {
               try {
                 const imageUrl = fc.args?.imageUrl || fc.args?.url;
-                console.log('🖼️ SHOW_IMAGE:', imageUrl);
-                
-                setDebugLog(prev => [...prev, `🖼️ Showing: ${imageUrl || 'NO URL'}`]);
+                console.log('🖼️ SHOW_IMAGE called with URL:', imageUrl);
+                console.log('🖼️ Full args:', JSON.stringify(fc.args));
                 
                 if (!imageUrl) {
-                  console.error('❌ No imageUrl');
+                  console.error('❌ No imageUrl in args:', fc.args);
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -180,7 +197,7 @@ export default function KeynoteCompanion() {
                 }
 
                 if (!imageUrl.startsWith('http')) {
-                  console.error('❌ Invalid URL');
+                  console.error('❌ Invalid URL format:', imageUrl);
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -193,9 +210,8 @@ export default function KeynoteCompanion() {
                   };
                 }
                 
-                console.log('✅ Setting image');
+                console.log('✅ Setting image URL:', imageUrl);
                 setCurrentImage(imageUrl);
-                setDebugLog(prev => [...prev, `✅ Image set!`]);
                 
                 return {
                   name: fc.name,
@@ -209,7 +225,7 @@ export default function KeynoteCompanion() {
                   },
                 };
               } catch (error: any) {
-                console.error('❌ Error:', error);
+                console.error('❌ Image display error:', error);
                 return {
                   name: fc.name,
                   id: fc.id,
@@ -228,7 +244,7 @@ export default function KeynoteCompanion() {
         );
 
         const validResponses = responses.filter(r => r !== null);
-        console.log('📤 Sending responses');
+        console.log('📤 Sending tool responses:', validResponses);
 
         client.sendToolResponse({
           functionResponses: validResponses,
@@ -245,28 +261,6 @@ export default function KeynoteCompanion() {
 
   return (
     <>
-      {/* Debug Log - внизу екрану */}
-      <div style={{
-        position: 'fixed',
-        bottom: '10px',
-        left: '10px',
-        right: '10px',
-        backgroundColor: 'rgba(0,0,0,0.9)',
-        color: 'lime',
-        padding: '8px',
-        borderRadius: '8px',
-        maxHeight: '150px',
-        overflow: 'auto',
-        fontSize: '11px',
-        fontFamily: 'monospace',
-        zIndex: 1000,
-        pointerEvents: 'none'
-      }}>
-        {debugLog.slice(-8).map((log, i) => (
-          <div key={i} style={{ marginBottom: '2px' }}>{log}</div>
-        ))}
-      </div>
-
       {/* Зображення ПОВЕРХ усього */}
       {currentImage && (
         <>
