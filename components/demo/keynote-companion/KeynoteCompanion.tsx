@@ -51,19 +51,40 @@ export default function KeynoteCompanion() {
         {
           functionDeclarations: [
             {
-              name: 'show_image',
-              description: 'Display an image on the canvas.',
+              name: 'read_google_sheet',
+              description: 'Read data from a Google Sheet. Returns the data as text and structured array.',
               parameters: {
                 type: 'OBJECT',
-                properties: { imageUrl: { type: 'STRING', description: 'URL' } },
+                properties: {
+                  spreadsheetId: { 
+                    type: 'STRING', 
+                    description: 'Google Sheets spreadsheet ID' 
+                  },
+                  range: { 
+                    type: 'STRING', 
+                    description: 'Cell range like A1:Z10' 
+                  }
+                },
+                required: ['spreadsheetId', 'range'],
+              },
+            },
+            {
+              name: 'show_image',
+              description: 'Display an image on the canvas. Use this after reading image URLs from the spreadsheet.',
+              parameters: {
+                type: 'OBJECT',
+                properties: { 
+                  imageUrl: { 
+                    type: 'STRING', 
+                    description: 'Full HTTP/HTTPS URL of the image to display' 
+                  } 
+                },
                 required: ['imageUrl'],
               },
             },
           ],
         },
       ],
-    });
-  }
 
   setupConfig();
 }, [setConfig, user, current]);
