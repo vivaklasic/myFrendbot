@@ -108,98 +108,83 @@ export default function KeynoteCompanion() {
   }, [setConfig, user, current]);
 
   // Обработка tool calls
-  useEffect(() => {
-    if (!client || !connected) {
-      console.log('⚠️ Client or connection not ready:', { client: !!client, connected });
-      return;
-    }
+// Обработка tool calls
+useEffect(() => {
+  if (!client || !connected) {
+    console.log('⚠️ Client or connection not ready:', { client: !!client, connected });
+    return;
+  }
 
-    console.log('✅ Tool call handler registered');
+  console.log('✅ Tool call handler registered');
 
-    const handleToolCall = async (toolCall: any) => {
-      // ======================= LOGS START =======================
-      // Этот блок покажет в консоли ТОЧНО то, что прислала модель
-      console.log('\n\n!!! ПОЛУЧЕН РЕАЛЬНЫЙ TOOLCALL ОТ МОДЕЛИ !!!');
-      console.log('Timestamp:', new Date().toISOString());
-      console.log('RAW OBJECT:', JSON.stringify(toolCall, null, 2));
-      console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n');
-      // ======================== LOGS END ========================
+  const handleToolCall = async (toolCall: any) => {
+    // Просто для информации в консоли, на случай если понадобится
+    console.log('--- Получен toolCall от модели ---', JSON.stringify(toolCall, null, 2));
 
-      if (!toolCall.functionCalls?.length) {
-        console.warn('⚠️ Toolcall получен, но массив functionCalls пуст.');
-        return;
-      }
+    if (!toolCall.functionCalls?.length) return;
 
-      const responses = await Promise.all(
-        toolCall.functionCalls.map(async (fc: any, index: number) => {
-          console.log(`🧩 Обработка вызова #${index + 1}: ${fc.name}`);
+    const responses = await Promise.all(
+      toolCall.functionCalls.map(async (fc: any, index: number) => {
+        console.log(`🧩 Обработка вызова #${index + 1}: ${fc.name}`);
 
-          if (fc.name === 'show_image') {
-            const imageUrl = fc.args?.imageUrl || fc.args?.url;
-            console.log('🖼️ Функция "show_image" вызвана с URL:', imageUrl);
+        if (fc.name === 'show_image') {
+          const imageUrl = fc.args?.imageUrl || fc.args?.url;
+          
+          // ========================== ВОТ ГЛАВНЫЙ ТЕСТ ==========================
+          alert(`!!! БОТ ВЫЗВАЛ ФУНКЦИЮ show_image !!!\n\nURL, который он прислал:\n${imageUrl}`);
+          // ====================================================================
 
-            if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.startsWith('http')) {
-              console.error('❌ ОШИБКА: Неверный или отсутствующий URL для show_image.');
-              return {
-                name: fc.name,
-                id: fc.id,
-                response: { result: { success: false, error: 'Invalid or missing image URL' } },
-              };
-            }
-
-            console.log('✅ URL корректен. Вызываю setCurrentImage...');
-            setCurrentImage(imageUrl);
-            
+          if (!imageUrl || !imageUrl.startsWith('http')) {
+            console.error('❌ ОШИБКА: Неверный URL от бота.');
+            // ... (остальной код обработки ошибки)
             return {
               name: fc.name,
               id: fc.id,
-              response: {
-                result: {
-                  success: true,
-                  message: `Image display triggered for: ${imageUrl}`,
-                },
-              },
+              response: { result: { success: false, error: 'Invalid image URL' } },
             };
           }
 
-          if (fc.name === 'read_google_sheet') {
-            try {
-              const { spreadsheetId, range } = fc.args;
-              const res = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ spreadsheetId, range }),
-              });
-              const data = await res.json();
-              return {
-                name: fc.name,
-                id: fc.id,
-                response: {
-                  result: { success: data.success, data: data.data },
-                },
-              };
-            } catch (err: any) {
-              return {
-                name: fc.name,
-                id: fc.id,
-                response: { result: { success: false, error: err.message } },
-              };
-            }
+          setCurrentImage(imageUrl);
+          return {
+            name: fc.name,
+            id: fc.id,
+            response: {
+              result: {
+                success: true,
+                message: `Image displayed successfully: ${imageUrl}`,
+              },
+            },
+          };
+        }
+
+        if (fc.name === 'read_google_sheet') {
+          // ... (этот блок остается без изменений)
+          try {
+            const { spreadsheetId, range } = fc.args;
+            const res = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ spreadsheetId, range }),
+            });
+            const data = await res.json();
+            return { name: fc.name, id: fc.id, response: { result: { success: data.success, data: data.data } } };
+          } catch (err: any) {
+            return { name: fc.name, id: fc.id, response: { result: { success: false, error: err.message } } };
           }
+        }
 
-          return null;
-        })
-      );
+        return null;
+      })
+    );
 
-      const validResponses = responses.filter(Boolean);
-      console.log('📤 Отправка ответов на tool responses:', validResponses);
-      client.sendToolResponse({ functionResponses: validResponses });
-    };
+    const validResponses = responses.filter(Boolean);
+    console.log('📤 Отправка ответов на tool responses:', validResponses);
+    client.sendToolResponse({ functionResponses: validResponses });
+  };
 
-    client.on('toolcall', handleToolCall);
-    return () => client.off('toolcall', handleToolCall);
-  }, [client, connected]);
-
+  client.on('toolcall', handleToolCall);
+  return () => client.off('toolcall', handleToolCall);
+}, [client, connected]);
   // Лог смены изображения
   useEffect(() => {
     // Этот лог поможет убедиться, что состояние действительно меняется
