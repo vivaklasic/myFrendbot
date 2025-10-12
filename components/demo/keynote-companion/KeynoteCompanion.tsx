@@ -103,8 +103,10 @@ export default function KeynoteCompanion() {
     if (!client || !connected) return;
 
     const handleToolCall = async (toolCall: any) => {
-      console.log('🔧 Tool call received:', toolCall);
-      console.log('🔧 Function calls:', toolCall.functionCalls);
+  const showImageCall = toolCall.functionCalls?.find((fc: any) => fc.name === 'show_image');
+  if (showImageCall) {
+    console.log('🖼️ SHOW_IMAGE:', JSON.stringify(showImageCall));
+  }
 
       if (toolCall.functionCalls) {
         const responses = await Promise.all(
