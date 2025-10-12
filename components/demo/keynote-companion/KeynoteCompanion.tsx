@@ -26,6 +26,7 @@ export default function KeynoteCompanion() {
   // Настройка конфига для Live API
   useEffect(() => {
     async function setupConfig() {
+      // ... (Ваш код для настройки конфига остается без изменений)
       console.log('\n🚀 INITIALIZATION: Setting up config...');
       console.log('═══════════════════════════════════════');
 
@@ -56,7 +57,7 @@ export default function KeynoteCompanion() {
         console.error('❌ Failed to fetch sheet data:', err);
       }
 
-      const systemInstruction = 
+      const systemInstruction =
         createSystemInstructions(current, user) +
         '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
         '- You MUST use the show_image function to display images\n' +
@@ -116,36 +117,46 @@ export default function KeynoteCompanion() {
     console.log('✅ Tool call handler registered');
 
     const handleToolCall = async (toolCall: any) => {
-      console.log('\n🔔 TOOL CALL RECEIVED');
-      console.log('Full toolCall object:', JSON.stringify(toolCall, null, 2));
+      // ======================= LOGS START =======================
+      // Этот блок покажет в консоли ТОЧНО то, что прислала модель
+      console.log('\n\n!!! ПОЛУЧЕН РЕАЛЬНЫЙ TOOLCALL ОТ МОДЕЛИ !!!');
+      console.log('Timestamp:', new Date().toISOString());
+      console.log('RAW OBJECT:', JSON.stringify(toolCall, null, 2));
+      console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n');
+      // ======================== LOGS END ========================
 
-      if (!toolCall.functionCalls?.length) return;
+      if (!toolCall.functionCalls?.length) {
+        console.warn('⚠️ Toolcall получен, но массив functionCalls пуст.');
+        return;
+      }
 
       const responses = await Promise.all(
         toolCall.functionCalls.map(async (fc: any, index: number) => {
-          console.log(`🧩 Function Call #${index + 1}: ${fc.name}`);
+          console.log(`🧩 Обработка вызова #${index + 1}: ${fc.name}`);
 
           if (fc.name === 'show_image') {
             const imageUrl = fc.args?.imageUrl || fc.args?.url;
-            console.log('🖼️ show_image called with URL:', imageUrl);
+            console.log('🖼️ Функция "show_image" вызвана с URL:', imageUrl);
 
-            if (!imageUrl || !imageUrl.startsWith('http')) {
+            if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.startsWith('http')) {
+              console.error('❌ ОШИБКА: Неверный или отсутствующий URL для show_image.');
               return {
                 name: fc.name,
                 id: fc.id,
-                response: { result: { success: false, error: 'Invalid image URL' } },
+                response: { result: { success: false, error: 'Invalid or missing image URL' } },
               };
             }
 
+            console.log('✅ URL корректен. Вызываю setCurrentImage...');
             setCurrentImage(imageUrl);
-            console.log('✅ Image state updated');
+            
             return {
               name: fc.name,
               id: fc.id,
               response: {
                 result: {
                   success: true,
-                  message: `Image displayed successfully: ${imageUrl}`,
+                  message: `Image display triggered for: ${imageUrl}`,
                 },
               },
             };
@@ -181,7 +192,7 @@ export default function KeynoteCompanion() {
       );
 
       const validResponses = responses.filter(Boolean);
-      console.log('📤 Sending tool responses:', validResponses);
+      console.log('📤 Отправка ответов на tool responses:', validResponses);
       client.sendToolResponse({ functionResponses: validResponses });
     };
 
@@ -191,11 +202,44 @@ export default function KeynoteCompanion() {
 
   // Лог смены изображения
   useEffect(() => {
-    console.log('🖼️ IMAGE STATE CHANGED:', currentImage);
+    // Этот лог поможет убедиться, что состояние действительно меняется
+    if (currentImage) {
+        console.log('🖼️✅ Стейт currentImage успешно обновлен:', currentImage);
+    } else {
+        console.log('🖼️❌ Стейт currentImage сброшен на null.');
+    }
   }, [currentImage]);
 
   return (
     <>
+      {/* ======================= DEBUG BUTTON START ======================= */}
+      <button
+        onClick={() => {
+          const testUrl = 'https://www.gstatic.com/devrel-devsite/prod/v956e6c1437146ce29323f4c243e6284f1076f5556247c20d7d3d231cc425e791/gemini/images/use_cases/gemini_search_lab_desktop.jpg';
+          console.log('--- КНОПКА ТЕСТА: Принудительно вызываю setCurrentImage с URL:', testUrl);
+          setCurrentImage(testUrl);
+        }}
+        style={{
+          position: 'fixed',
+          top: '15px',
+          left: '15px',
+          zIndex: 10001, // Высший приоритет, чтобы быть поверх всего
+          padding: '12px 18px',
+          background: 'red',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          boxShadow: '0 4px 10px rgba(0,0,0,0.4)',
+        }}
+      >
+        ТЕСТ ПОКАЗА КАРТИНКИ
+      </button>
+      {/* ======================== DEBUG BUTTON END ======================== */}
+
+
       {/* Модалка с изображением поверх всего */}
       {currentImage && (
         <>
@@ -248,8 +292,8 @@ export default function KeynoteCompanion() {
             <img
               src={currentImage}
               alt="Generated"
-              onLoad={() => console.log('✅ Image loaded:', currentImage)}
-              onError={(e) => console.error('❌ Image failed:', currentImage, e)}
+              onLoad={() => console.log('✅ IMG TAG: Картинка успешно загружена:', currentImage)}
+              onError={(e) => console.error('❌ IMG TAG: Ошибка загрузки картинки:', currentImage, e)}
               style={{
                 width: '100%',
                 height: 'auto',
