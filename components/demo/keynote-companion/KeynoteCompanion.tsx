@@ -16,8 +16,16 @@ export default function KeynoteCompanion() {
   // Set the configuration for the Live API
   useEffect(() => {
     async function setupConfig() {
+      console.log('\n🚀 INITIALIZATION: Setting up config...');
+      console.log('═══════════════════════════════════════');
+      
       let sheetText = '';
       try {
+        console.log('📊 Fetching initial sheet data...');
+        console.log('URL: https://mc-pbot-google-sheets.vercel.app/api');
+        console.log('SpreadsheetId: 1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU');
+        console.log('Range: A1:Z10');
+        
         const res = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -26,15 +34,35 @@ export default function KeynoteCompanion() {
             range: 'A1:Z10',
           }),
         });
+        
+        console.log('📥 Response status:', res.status);
         const data = await res.json();
+        console.log('📥 Response data:', JSON.stringify(data, null, 2));
+        
         if (data.success && data.data.length > 0) {
           sheetText = data.data
             .map((row: any[], i: number) => `Row ${i + 1}: ${row.join(' | ')}`)
             .join('\n');
+          console.log('✅ Sheet data loaded successfully!');
+          console.log('📊 Rows loaded:', data.data.length);
+          console.log('📋 Sheet content:\n', sheetText);
+        } else {
+          console.log('⚠️ No data or failed:', data);
         }
       } catch (err) {
-        console.error('Failed to fetch sheet data', err);
+        console.error('❌ Failed to fetch sheet data:', err);
       }
+
+      console.log('\n⚙️ Setting config with tools:');
+      console.log('Tools available:', ['read_google_sheet', 'show_image']);
+      console.log('System instruction length:', (createSystemInstructions(current, user) + 
+                '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
+                '- You MUST use the show_image function to display images\n' +
+                '- When you find an image URL in the spreadsheet, immediately call show_image with that URL\n' +
+                '- The show_image function is available and working\n' +
+                '- Always use complete URLs starting with http:// or https://\n\n' +
+                'Spreadsheet data:\n' + sheetText).length, 'characters');
+      console.log('═══════════════════════════════════════\n');
 
       setConfig({
         responseModalities: [Modality.AUDIO],
@@ -95,6 +123,7 @@ export default function KeynoteCompanion() {
       });
     }
 
+    console.log('🎬 Starting setupConfig...');
     setupConfig();
   }, [setConfig, user, current]);
 
