@@ -1,3 +1,5 @@
+//работает, но надо починить канвас
+
 import { useEffect, useRef, useState } from 'react';
 import { Modality } from '@google/genai';
 import BasicFace from '../basic-face/BasicFace';
