@@ -100,20 +100,37 @@ export default function KeynoteCompanion() {
 
   // Обробка tool calls від Gemini
   useEffect(() => {
-    if (!client || !connected) return;
+    if (!client || !connected) {
+      console.log('⚠️ Client or connection not ready:', { client: !!client, connected });
+      return;
+    }
+
+    console.log('✅ Tool call handler registered');
 
     const handleToolCall = async (toolCall: any) => {
-  const showImageCall = toolCall.functionCalls?.find((fc: any) => fc.name === 'show_image');
-  if (showImageCall) {
-    console.log('🖼️ SHOW_IMAGE:', JSON.stringify(showImageCall));
-  }
+      console.log('\n═══════════════════════════════════════');
+      console.log('🔔 TOOL CALL RECEIVED');
+      console.log('═══════════════════════════════════════');
+      console.log('Full toolCall object:', JSON.stringify(toolCall, null, 2));
+      
+      const showImageCall = toolCall.functionCalls?.find((fc: any) => fc.name === 'show_image');
+      if (showImageCall) {
+        console.log('\n🖼️  SHOW_IMAGE DETECTED!');
+        console.log('Args:', JSON.stringify(showImageCall.args, null, 2));
+      }
 
       if (toolCall.functionCalls) {
+        console.log(`\n📋 Processing ${toolCall.functionCalls.length} function call(s)\n`);
+        
         const responses = await Promise.all(
-          toolCall.functionCalls.map(async (fc: any) => {
-            console.log('📞 Processing function:', fc.name, 'with args:', fc.args);
+          toolCall.functionCalls.map(async (fc: any, index: number) => {
+            console.log(`┌─ Function Call #${index + 1} ─────────────────`);
+            console.log('│ Name:', fc.name);
+            console.log('│ ID:', fc.id);
+            console.log('│ Args:', JSON.stringify(fc.args, null, 2));
             
             if (fc.name === 'read_google_sheet') {
+              console.log('│ Processing: read_google_sheet');
               try {
                 const { spreadsheetId, range } = fc.args;
 
@@ -124,12 +141,15 @@ export default function KeynoteCompanion() {
                 });
 
                 const data = await response.json();
-                console.log('📊 Sheet data received:', data);
+                console.log('│ ✅ Sheet data received:', data.success ? 'Success' : 'Failed');
+                console.log('│ Rows:', data.data?.length || 0);
 
                 if (data.success && data.data) {
                   const formattedText = data.data.map((row: any[], i: number) => {
                     return `Row ${i + 1}: ${row.join(' | ')}`;
                   }).join('\n');
+
+                  console.log('└─────────────────────────────────────\n');
 
                   return {
                     name: fc.name,
@@ -145,6 +165,9 @@ export default function KeynoteCompanion() {
                     },
                   };
                 } else {
+                  console.log('│ ❌ Failed to read sheet');
+                  console.log('└─────────────────────────────────────\n');
+                  
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -157,6 +180,9 @@ export default function KeynoteCompanion() {
                   };
                 }
               } catch (error: any) {
+                console.log('│ ❌ Error:', error.message);
+                console.log('└─────────────────────────────────────\n');
+                
                 return {
                   name: fc.name,
                   id: fc.id,
@@ -171,13 +197,17 @@ export default function KeynoteCompanion() {
             }
 
             if (fc.name === 'show_image') {
+              console.log('│ Processing: show_image');
               try {
                 const imageUrl = fc.args?.imageUrl || fc.args?.url;
-                console.log('🖼️ SHOW_IMAGE called with URL:', imageUrl);
-                console.log('🖼️ Full args:', JSON.stringify(fc.args));
+                console.log('│ Image URL extracted:', imageUrl);
+                console.log('│ URL type:', typeof imageUrl);
+                console.log('│ Full args structure:', JSON.stringify(fc.args));
                 
                 if (!imageUrl) {
-                  console.error('❌ No imageUrl in args:', fc.args);
+                  console.log('│ ❌ No imageUrl found in args!');
+                  console.log('└─────────────────────────────────────\n');
+                  
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -191,7 +221,9 @@ export default function KeynoteCompanion() {
                 }
 
                 if (!imageUrl.startsWith('http')) {
-                  console.error('❌ Invalid URL format:', imageUrl);
+                  console.log('│ ❌ Invalid URL format (must start with http)');
+                  console.log('└─────────────────────────────────────\n');
+                  
                   return {
                     name: fc.name,
                     id: fc.id,
@@ -204,8 +236,11 @@ export default function KeynoteCompanion() {
                   };
                 }
                 
-                console.log('✅ Setting image URL:', imageUrl);
+                console.log('│ ✅ Setting image URL in state');
+                console.log('│ URL:', imageUrl);
                 setCurrentImage(imageUrl);
+                console.log('│ ✅ State updated!');
+                console.log('└─────────────────────────────────────\n');
                 
                 return {
                   name: fc.name,
@@ -219,7 +254,10 @@ export default function KeynoteCompanion() {
                   },
                 };
               } catch (error: any) {
-                console.error('❌ Image display error:', error);
+                console.log('│ ❌ Exception:', error.message);
+                console.log('│ Stack:', error.stack);
+                console.log('└─────────────────────────────────────\n');
+                
                 return {
                   name: fc.name,
                   id: fc.id,
@@ -233,12 +271,17 @@ export default function KeynoteCompanion() {
               }
             }
 
+            console.log('│ ⚠️ Unknown function:', fc.name);
+            console.log('└─────────────────────────────────────\n');
             return null;
           })
         );
 
         const validResponses = responses.filter(r => r !== null);
-        console.log('📤 Sending tool responses:', validResponses);
+        console.log('\n📤 Sending tool responses back to Gemini');
+        console.log('Response count:', validResponses.length);
+        console.log('Responses:', JSON.stringify(validResponses, null, 2));
+        console.log('═══════════════════════════════════════\n');
 
         client.sendToolResponse({
           functionResponses: validResponses,
@@ -253,13 +296,21 @@ export default function KeynoteCompanion() {
     };
   }, [client, connected]);
 
+  // Log when image state changes
+  useEffect(() => {
+    console.log('🖼️  IMAGE STATE CHANGED:', currentImage);
+  }, [currentImage]);
+
   return (
     <>
       {/* Зображення ПОВЕРХ усього */}
       {currentImage && (
         <>
           <div
-            onClick={() => setCurrentImage(null)}
+            onClick={() => {
+              console.log('🖼️  Closing image modal (backdrop clicked)');
+              setCurrentImage(null);
+            }}
             style={{
               position: 'fixed',
               top: 0,
@@ -286,7 +337,10 @@ export default function KeynoteCompanion() {
             padding: '20px'
           }}>
             <button
-              onClick={() => setCurrentImage(null)}
+              onClick={() => {
+                console.log('🖼️  Closing image modal (X button clicked)');
+                setCurrentImage(null);
+              }}
               style={{
                 position: 'absolute',
                 top: '10px',
@@ -308,6 +362,8 @@ export default function KeynoteCompanion() {
             <img 
               src={currentImage} 
               alt="Content"
+              onLoad={() => console.log('🖼️  Image loaded successfully:', currentImage)}
+              onError={(e) => console.error('🖼️  Image failed to load:', currentImage, e)}
               style={{
                 width: '100%',
                 height: 'auto',
@@ -336,4 +392,3 @@ export default function KeynoteCompanion() {
       </details>
     </>
   );
-}
