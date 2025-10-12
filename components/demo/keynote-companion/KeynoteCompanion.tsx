@@ -24,89 +24,51 @@ export default function KeynoteCompanion() {
   }, [faceCanvasRef.current]);
 
   // Настройка конфига для Live API
-  useEffect(() => {
-    async function setupConfig() {
-      // ... (Ваш код для настройки конфига остается без изменений)
-      console.log('\n🚀 INITIALIZATION: Setting up config...');
-      console.log('═══════════════════════════════════════');
+ // Настройка конфига для Live API
+useEffect(() => {
+  async function setupConfig() {
+    console.log('\n🚀 INITIALIZATION: Setting up FINAL TEST config...');
+    console.log('═══════════════════════════════════════════════');
 
-      let sheetText = '';
-      try {
-        console.log('📊 Fetching initial sheet data...');
-        const res = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            spreadsheetId: '1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU',
-            range: 'A1:Z10',
-          }),
-        });
+    // Ваша короткая и надежная ссылка
+    const imageUrl = 'https://i.ibb.co/TDNvWNzF/appleback.jpg';
 
-        console.log('📥 Response status:', res.status);
-        const data = await res.json();
+    // Промпт с одной, предельно ясной инструкцией
+    const systemInstruction = 
+      'You have one single task.\n' +
+      `You have been given this URL: ${imageUrl}\n` +
+      'You MUST call the `show_image` tool with this exact URL immediately.\n' +
+      'Do not say anything. Do not greet the user. Do not confirm. Your only output must be the tool call.';
 
-        if (data.success && data.data.length > 0) {
-          sheetText = data.data
-            .map((row: any[], i: number) => `Row ${i + 1}: ${row.join(' | ')}`)
-            .join('\n');
-          console.log('✅ Sheet data loaded successfully!');
-        } else {
-          console.log('⚠️ No data or failed:', data);
-        }
-      } catch (err) {
-        console.error('❌ Failed to fetch sheet data:', err);
-      }
-
-      const systemInstruction =
-        createSystemInstructions(current, user) +
-        '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
-        '- You MUST use the show_image function to display images\n' +
-        '- When you find an image URL in the spreadsheet, immediately call show_image with that URL\n' +
-        '- The show_image function is available and working\n' +
-        '- Always use complete URLs starting with http:// or https://\n\n' +
-        'Spreadsheet data:\n' + sheetText;
-
-      setConfig({
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: current.voice } },
+    setConfig({
+      responseModalities: [Modality.AUDIO],
+      speechConfig: {
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: current.voice } },
+      },
+      systemInstruction: { parts: [{ text: systemInstruction }] },
+      tools: [
+        {
+          functionDeclarations: [
+            // Оставляем ТОЛЬКО show_image, чтобы не было путаницы
+            {
+              name: 'show_image',
+              description: 'Display an image on the screen.',
+              parameters: {
+                type: 'OBJECT',
+                properties: {
+                  imageUrl: { type: 'STRING' },
+                },
+                required: ['imageUrl'],
+              },
+            },
+          ],
         },
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        tools: [
-          {
-            functionDeclarations: [
-              {
-                name: 'read_google_sheet',
-                description: 'Read data from Google Sheet.',
-                parameters: {
-                  type: 'OBJECT',
-                  properties: {
-                    spreadsheetId: { type: 'STRING' },
-                    range: { type: 'STRING' },
-                  },
-                  required: ['spreadsheetId', 'range'],
-                },
-              },
-              {
-                name: 'show_image',
-                description: 'Display image on screen (modal overlay).',
-                parameters: {
-                  type: 'OBJECT',
-                  properties: {
-                    imageUrl: { type: 'STRING' },
-                  },
-                  required: ['imageUrl'],
-                },
-              },
-            ],
-          },
-        ],
-      });
-    }
+      ],
+    });
+  }
 
-    setupConfig();
-  }, [setConfig, user, current]);
-
+  setupConfig();
+}, [setConfig, user, current]);
   // Обработка tool calls
 // Обработка tool calls
 useEffect(() => {
