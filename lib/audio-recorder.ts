@@ -2,26 +2,9 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-/**
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 import { audioContext } from './utils';
 import AudioRecordingWorklet from './worklets/audio-processing';
 import VolMeterWorket from './worklets/vol-meter';
-
 import { createWorketFromSrc } from './audioworklet-registry';
 import EventEmitter from 'eventemitter3';
 
@@ -42,74 +25,170 @@ export class AudioRecorder extends EventEmitter {
   recording: boolean = false;
   recordingWorklet: AudioWorkletNode | undefined;
   vuWorklet: AudioWorkletNode | undefined;
-
   private starting: Promise<void> | null = null;
 
   constructor(public sampleRate = 16000) {
     super();
   }
 
-  async start() {
+  /**
+   * Отримати список доступних аудіовходів
+   */
+  async getAudioInputs(): Promise<MediaDeviceInfo[]> {
+    // Спочатку потрібен дозвіл
+    try {
+      const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      tempStream.getTracks().forEach(track => track.stop());
+    } catch (e) {
+      console.error('Не вдалося отримати дозвіл на мікрофон:', e);
+    }
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter(device => device.kind === 'audioinput');
+  }
+
+  async start(deviceId?: string) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('Could not request user media');
     }
 
     this.starting = new Promise(async (resolve, reject) => {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.audioContext = await audioContext({ sampleRate: this.sampleRate });
-      this.source = this.audioContext.createMediaStreamSource(this.stream);
+      try {
+        // Якщо deviceId не вказано, спробуємо знайти Bluetooth автоматично
+        let selectedDeviceId = deviceId;
+        
+        if (!selectedDeviceId) {
+          const devices = await this.getAudioInputs();
+          console.log('Доступні аудіовходи:', devices.map(d => ({
+            id: d.deviceId,
+            label: d.label,
+            groupId: d.groupId
+          })));
 
-      const workletName = 'audio-recorder-worklet';
-      const src = createWorketFromSrc(workletName, AudioRecordingWorklet);
+          // Шукаємо Bluetooth-пристрій (часто містить "Bluetooth", "BT", "headset" в назві)
+          const bluetoothDevice = devices.find(d => 
+            d.label.toLowerCase().includes('bluetooth') ||
+            d.label.toLowerCase().includes('headset') ||
+            d.label.toLowerCase().includes('airpods') ||
+            d.label.toLowerCase().includes('buds')
+          );
 
-      await this.audioContext.audioWorklet.addModule(src);
-      this.recordingWorklet = new AudioWorkletNode(
-        this.audioContext,
-        workletName
-      );
-
-      this.recordingWorklet.port.onmessage = async (ev: MessageEvent) => {
-        // Worklet processes recording floats and messages converted buffer
-        const arrayBuffer = ev.data.data.int16arrayBuffer;
-
-        if (arrayBuffer) {
-          const arrayBufferString = arrayBufferToBase64(arrayBuffer);
-          this.emit('data', arrayBufferString);
+          if (bluetoothDevice) {
+            selectedDeviceId = bluetoothDevice.deviceId;
+            console.log('Знайдено Bluetooth-пристрій:', bluetoothDevice.label);
+          } else {
+            console.warn('Bluetooth-пристрій не знайдено, використовується пристрій за замовчуванням');
+          }
         }
-      };
-      this.source.connect(this.recordingWorklet);
 
-      // vu meter worklet
-      const vuWorkletName = 'vu-meter';
-      await this.audioContext.audioWorklet.addModule(
-        createWorketFromSrc(vuWorkletName, VolMeterWorket)
-      );
-      this.vuWorklet = new AudioWorkletNode(this.audioContext, vuWorkletName);
-      this.vuWorklet.port.onmessage = (ev: MessageEvent) => {
-        this.emit('volume', ev.data.volume);
-      };
+        // Налаштування аудіо з урахуванням Safari
+        const audioConstraints: MediaTrackConstraints = {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        };
 
-      this.source.connect(this.vuWorklet);
-      this.recording = true;
-      resolve();
-      this.starting = null;
+        // Додаємо deviceId якщо є
+        if (selectedDeviceId) {
+          audioConstraints.deviceId = { exact: selectedDeviceId };
+        }
+
+        // Safari не підтримує sampleRate в constraints, тому не додаємо його
+        // sampleRate буде встановлено через AudioContext
+
+        this.stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: audioConstraints 
+        });
+
+        // Перевіряємо, чи отримали правильний пристрій
+        const track = this.stream.getAudioTracks()[0];
+        const settings = track.getSettings();
+        console.log('Використовується аудіопристрій:', {
+          label: track.label,
+          sampleRate: settings.sampleRate,
+          channelCount: settings.channelCount,
+          deviceId: settings.deviceId
+        });
+
+        // Safari потребує взаємодії користувача перед створенням AudioContext
+        // Також Safari має проблеми з кастомним sampleRate
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        if (isSafari) {
+          // Для Safari використовуємо дефолтний sampleRate
+          this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          console.log('Safari: використовується нативний sampleRate:', this.audioContext.sampleRate);
+        } else {
+          // Для інших браузерів намагаємося встановити бажаний sampleRate
+          try {
+            this.audioContext = await audioContext({ sampleRate: this.sampleRate });
+          } catch (e) {
+            console.warn('Не вдалося встановити sampleRate, використовується дефолтний:', e);
+            this.audioContext = new AudioContext();
+          }
+        }
+
+        this.source = this.audioContext.createMediaStreamSource(this.stream);
+
+        const workletName = 'audio-recorder-worklet';
+        const src = createWorketFromSrc(workletName, AudioRecordingWorklet);
+        await this.audioContext.audioWorklet.addModule(src);
+        
+        this.recordingWorklet = new AudioWorkletNode(
+          this.audioContext,
+          workletName
+        );
+        
+        this.recordingWorklet.port.onmessage = async (ev: MessageEvent) => {
+          const arrayBuffer = ev.data.data.int16arrayBuffer;
+          if (arrayBuffer) {
+            const arrayBufferString = arrayBufferToBase64(arrayBuffer);
+            this.emit('data', arrayBufferString);
+          }
+        };
+        
+        this.source.connect(this.recordingWorklet);
+
+        // VU meter worklet
+        const vuWorkletName = 'vu-meter';
+        await this.audioContext.audioWorklet.addModule(
+          createWorketFromSrc(vuWorkletName, VolMeterWorket)
+        );
+        
+        this.vuWorklet = new AudioWorkletNode(this.audioContext, vuWorkletName);
+        this.vuWorklet.port.onmessage = (ev: MessageEvent) => {
+          this.emit('volume', ev.data.volume);
+        };
+        
+        this.source.connect(this.vuWorklet);
+
+        this.recording = true;
+        resolve();
+        this.starting = null;
+      } catch (error) {
+        reject(error);
+        this.starting = null;
+      }
     });
+
+    return this.starting;
   }
 
   stop() {
-    // It is plausible that stop would be called before start completes,
-    // such as if the Websocket immediately hangs up
     const handleStop = () => {
       this.source?.disconnect();
       this.stream?.getTracks().forEach(track => track.stop());
       this.stream = undefined;
       this.recordingWorklet = undefined;
       this.vuWorklet = undefined;
+      this.recording = false;
     };
+
     if (this.starting) {
       this.starting.then(handleStop);
       return;
     }
+    
     handleStop();
   }
 }
