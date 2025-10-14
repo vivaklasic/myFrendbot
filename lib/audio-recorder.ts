@@ -26,16 +26,14 @@ export class AudioRecorder extends EventEmitter {
   recordingWorklet: AudioWorkletNode | undefined;
   vuWorklet: AudioWorkletNode | undefined;
   private starting: Promise<void> | null = null;
+  // Для воспроизведения через Bluetooth
+  private audioElement: HTMLAudioElement | undefined;
 
   constructor(public sampleRate = 16000) {
     super();
   }
 
-  /**
-   * Отримати список доступних аудіовходів
-   */
   async getAudioInputs(): Promise<MediaDeviceInfo[]> {
-    // Спочатку потрібен дозвіл
     try {
       const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       tempStream.getTracks().forEach(track => track.stop());
@@ -47,6 +45,68 @@ export class AudioRecorder extends EventEmitter {
     return devices.filter(device => device.kind === 'audioinput');
   }
 
+  /**
+   * КРИТИЧНО: Активувати Bluetooth HSP/HFP профіль для мікрофона
+   * Це примусово перемикає Bluetooth з A2DP (тільки музика) на HSP (дзвінки)
+   */
+  private async activateBluetoothProfile(): Promise<MediaStream | null> {
+    try {
+      console.log('🎧 Спроба активувати Bluetooth HSP/HFP профіль...');
+      
+      // MAGIC: Запитуємо echoCancellation: true - це сигнал для Android 
+      // перемкнути Bluetooth на HSP/HFP профіль (для дзвінків)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,  // КРИТИЧНО для активації Bluetooth мікрофона
+          noiseSuppression: true,
+          autoGainControl: true,
+          // НЕ вказуємо deviceId - дозволяємо системі вибрати "communications" пристрій
+        }
+      });
+
+      const track = stream.getAudioTracks()[0];
+      const settings = track.getSettings();
+      
+      console.log('✅ Активовано аудіопристрій:', {
+        label: track.label,
+        sampleRate: settings.sampleRate,
+        echoCancellation: settings.echoCancellation,
+        deviceId: settings.deviceId
+      });
+
+      // Перевірка: якщо sampleRate = 8000 або 16000, це HSP/HFP (добре!)
+      // Якщо 44100 або 48000, це все ще A2DP (погано)
+      if (settings.sampleRate && settings.sampleRate <= 16000) {
+        console.log('✅ Bluetooth HSP/HFP профіль АКТИВОВАНО (sampleRate:', settings.sampleRate, 'Hz)');
+        return stream;
+      } else {
+        console.warn('⚠️ Можливо, Bluetooth все ще в A2DP режимі (sampleRate:', settings.sampleRate, 'Hz)');
+        return stream;
+      }
+    } catch (error) {
+      console.error('❌ Помилка активації Bluetooth профілю:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Налаштувати відтворення звуку через Bluetooth-навушники
+   */
+  private setupBluetoothPlayback() {
+    // Створюємо прихований audio елемент для маршрутизації звуку
+    if (!this.audioElement) {
+      this.audioElement = document.createElement('audio');
+      this.audioElement.autoplay = true;
+      this.audioElement.muted = false;
+      
+      // ВАЖЛИВО: srcObject з MediaStream автоматично використовує той самий 
+      // аудіопристрій, що і для запису (Bluetooth)
+      if (this.stream) {
+        this.audioElement.srcObject = this.stream;
+      }
+    }
+  }
+
   async start(deviceId?: string) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error('Could not request user media');
@@ -54,76 +114,30 @@ export class AudioRecorder extends EventEmitter {
 
     this.starting = new Promise(async (resolve, reject) => {
       try {
-        // Якщо deviceId не вказано, спробуємо знайти Bluetooth автоматично
-        let selectedDeviceId = deviceId;
+        // КРОК 1: Активувати Bluetooth HSP/HFP профіль
+        this.stream = await this.activateBluetoothProfile();
         
-        if (!selectedDeviceId) {
-          const devices = await this.getAudioInputs();
-          console.log('Доступні аудіовходи:', devices.map(d => ({
-            id: d.deviceId,
-            label: d.label,
-            groupId: d.groupId
-          })));
-
-          // Шукаємо Bluetooth-пристрій (часто містить "Bluetooth", "BT", "headset" в назві)
-          const bluetoothDevice = devices.find(d => 
-            d.label.toLowerCase().includes('bluetooth') ||
-            d.label.toLowerCase().includes('headset') ||
-            d.label.toLowerCase().includes('airpods') ||
-            d.label.toLowerCase().includes('buds')
-          );
-
-          if (bluetoothDevice) {
-            selectedDeviceId = bluetoothDevice.deviceId;
-            console.log('Знайдено Bluetooth-пристрій:', bluetoothDevice.label);
-          } else {
-            console.warn('Bluetooth-пристрій не знайдено, використовується пристрій за замовчуванням');
-          }
+        if (!this.stream) {
+          throw new Error('Не вдалося отримати аудіопотік');
         }
 
-        // Налаштування аудіо з урахуванням Safari
-        const audioConstraints: MediaTrackConstraints = {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        };
+        // КРОК 2: Налаштувати відтворення через Bluetooth
+        this.setupBluetoothPlayback();
 
-        // Додаємо deviceId якщо є
-        if (selectedDeviceId) {
-          audioConstraints.deviceId = { exact: selectedDeviceId };
-        }
-
-        // Safari не підтримує sampleRate в constraints, тому не додаємо його
-        // sampleRate буде встановлено через AudioContext
-
-        this.stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: audioConstraints 
-        });
-
-        // Перевіряємо, чи отримали правильний пристрій
-        const track = this.stream.getAudioTracks()[0];
-        const settings = track.getSettings();
-        console.log('Використовується аудіопристрій:', {
-          label: track.label,
-          sampleRate: settings.sampleRate,
-          channelCount: settings.channelCount,
-          deviceId: settings.deviceId
-        });
-
-        // Safari потребує взаємодії користувача перед створенням AudioContext
-        // Також Safari має проблеми з кастомним sampleRate
+        // Safari compatibility
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         
         if (isSafari) {
-          // Для Safari використовуємо дефолтний sampleRate
           this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
           console.log('Safari: використовується нативний sampleRate:', this.audioContext.sampleRate);
         } else {
-          // Для інших браузерів намагаємося встановити бажаний sampleRate
+          // Для HSP/HFP профілю система сама обере правильний sampleRate (8000 або 16000)
+          // Не примусово встановлюємо його
           try {
-            this.audioContext = await audioContext({ sampleRate: this.sampleRate });
+            this.audioContext = new AudioContext();
+            console.log('AudioContext sampleRate:', this.audioContext.sampleRate);
           } catch (e) {
-            console.warn('Не вдалося встановити sampleRate, використовується дефолтний:', e);
+            console.warn('Помилка створення AudioContext:', e);
             this.audioContext = new AudioContext();
           }
         }
@@ -163,15 +177,39 @@ export class AudioRecorder extends EventEmitter {
         this.source.connect(this.vuWorklet);
 
         this.recording = true;
+        console.log('🎤 Запис розпочато через Bluetooth');
         resolve();
         this.starting = null;
       } catch (error) {
+        console.error('❌ Помилка запуску:', error);
         reject(error);
         this.starting = null;
       }
     });
 
     return this.starting;
+  }
+
+  /**
+   * Відтворити аудіо через Bluetooth-навушники
+   * Викликати, коли бот відповідає
+   */
+  playAudioThroughBluetooth(audioBlob: Blob) {
+    if (!this.audioElement) {
+      this.audioElement = document.createElement('audio');
+      this.audioElement.autoplay = true;
+      document.body.appendChild(this.audioElement);
+    }
+    
+    const url = URL.createObjectURL(audioBlob);
+    this.audioElement.src = url;
+    this.audioElement.play().catch(e => {
+      console.error('Помилка відтворення:', e);
+    });
+    
+    this.audioElement.onended = () => {
+      URL.revokeObjectURL(url);
+    };
   }
 
   stop() {
@@ -182,6 +220,19 @@ export class AudioRecorder extends EventEmitter {
       this.recordingWorklet = undefined;
       this.vuWorklet = undefined;
       this.recording = false;
+      
+      // Очистити audio element
+      if (this.audioElement) {
+        this.audioElement.pause();
+        this.audioElement.srcObject = null;
+        this.audioElement.src = '';
+        if (this.audioElement.parentNode) {
+          this.audioElement.parentNode.removeChild(this.audioElement);
+        }
+        this.audioElement = undefined;
+      }
+      
+      console.log('🛑 Запис зупинено');
     };
 
     if (this.starting) {
