@@ -58,11 +58,13 @@ export default function KeynoteCompanion() {
 
       const systemInstruction = 
         createSystemInstructions(current, user) +
-        '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
-        '- You MUST use the show_image function to display images\n' +
-        '- When you find an image URL in the spreadsheet, immediately call show_image with that URL\n' +
-        '- The show_image function is available and working\n' +
-        '- Always use complete URLs starting with http:// or https://\n\n' +
+        '\n\n**CRITICAL TOOL USAGE RULES:**\n' +
+        '1. IF user says "show image" OR "покажи картинку" OR mentions row number → IMMEDIATELY call show_image\n' +
+        '2. DO NOT say "I will show" or "Я покажу" - JUST CALL THE FUNCTION\n' +
+        '3. DO NOT describe what you will do - DO IT IMMEDIATELY\n' +
+        '4. Example trigger: "show row 2" → call show_image(url_from_row_2)\n' +
+        '5. NEVER narrate function calls - execute silently\n\n' +
+        '**RULE: When user asks for image = call show_image FIRST, speak AFTER**\n\n' +
         'Spreadsheet data:\n' + sheetText;
 
       setConfig({
@@ -71,28 +73,42 @@ export default function KeynoteCompanion() {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: current.voice } },
         },
         systemInstruction: { parts: [{ text: systemInstruction }] },
+        toolConfig: {
+          functionCallingConfig: {
+            mode: 'AUTO', // или 'ANY' чтобы форсировать вызовы
+          },
+        },
         tools: [
           {
             functionDeclarations: [
               {
                 name: 'read_google_sheet',
-                description: 'Read data from Google Sheet.',
+                description: 'Read data from Google Sheet. Use this to get spreadsheet content.',
                 parameters: {
                   type: 'OBJECT',
                   properties: {
-                    spreadsheetId: { type: 'STRING' },
-                    range: { type: 'STRING' },
+                    spreadsheetId: { 
+                      type: 'STRING',
+                      description: 'The ID of the spreadsheet'
+                    },
+                    range: { 
+                      type: 'STRING',
+                      description: 'Cell range like A1:Z10'
+                    },
                   },
                   required: ['spreadsheetId', 'range'],
                 },
               },
               {
                 name: 'show_image',
-                description: 'Display image on screen (modal overlay).',
+                description: 'IMMEDIATELY display an image on screen. Call this function BEFORE speaking. Do not say you will show - just call this function.',
                 parameters: {
                   type: 'OBJECT',
                   properties: {
-                    imageUrl: { type: 'STRING' },
+                    imageUrl: { 
+                      type: 'STRING',
+                      description: 'Complete URL starting with http:// or https://'
+                    },
                   },
                   required: ['imageUrl'],
                 },
@@ -114,6 +130,15 @@ export default function KeynoteCompanion() {
     }
 
     console.log('✅ Tool call handler registered');
+
+    // Логируем ВСЕ события от клиента
+    const logAllEvents = (event: any) => {
+      console.log('🔵 CLIENT EVENT:', event.type || 'unknown', event);
+    };
+    
+    client.on('content', logAllEvents);
+    client.on('setupcomplete', () => console.log('✅ Setup complete'));
+    client.on('turncomplete', () => console.log('🔄 Turn complete'));
 
     const handleToolCall = async (toolCall: any) => {
       console.log('\n🔔 TOOL CALL RECEIVED');
@@ -186,7 +211,10 @@ export default function KeynoteCompanion() {
     };
 
     client.on('toolcall', handleToolCall);
-    return () => client.off('toolcall', handleToolCall);
+    return () => {
+      client.off('toolcall', handleToolCall);
+      client.off('content', logAllEvents);
+    };
   }, [client, connected]);
 
   // Лог смены изображения
@@ -196,6 +224,29 @@ export default function KeynoteCompanion() {
 
   return (
     <>
+      {/* Тестовая кнопка */}
+      <button
+        onClick={() => {
+          console.log('🧪 Manual test: calling show_image');
+          setCurrentImage('https://via.placeholder.com/400x300/FF6B6B/FFFFFF?text=Test+Image');
+        }}
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          zIndex: 10000,
+          padding: '12px 24px',
+          background: '#FF6B6B',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontWeight: 'bold',
+        }}
+      >
+        🧪 Test Image Display
+      </button>
+
       {/* Модалка с изображением поверх всего */}
       {currentImage && (
         <>
