@@ -40,7 +40,7 @@ export type UseLiveApiResults = {
 
 export function useLiveApi({
   apiKey,
-  model: 'gemini-2.5-flash-native-audio-dialog',
+  model = 'gemini-2.5-flash-native-audio-dialog', // default value
 }: {
   apiKey: string;
   model?: string;
