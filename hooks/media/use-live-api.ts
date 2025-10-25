@@ -46,7 +46,6 @@ export function useLiveApi({
   model?: string;
 }): UseLiveApiResults {
   const client = useMemo(() => new GenAILiveClient(apiKey, model), [apiKey, model]);
-}
 
   const audioStreamerRef = useRef<AudioStreamer | null>(null);
 
