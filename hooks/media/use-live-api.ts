@@ -40,12 +40,13 @@ export type UseLiveApiResults = {
 
 export function useLiveApi({
   apiKey,
-  model = DEFAULT_LIVE_API_MODEL,
+  model = "gemini-2.5-flash-native-audio-preview-09-2025",
 }: {
   apiKey: string;
   model?: string;
 }): UseLiveApiResults {
-  const client = useMemo(() => new GenAILiveClient(apiKey, model), [apiKey]);
+  const client = useMemo(() => new GenAILiveClient(apiKey, model), [apiKey, model]);
+}
 
   const audioStreamerRef = useRef<AudioStreamer | null>(null);
 
