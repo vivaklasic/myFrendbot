@@ -10,273 +10,230 @@ export default function KeynoteCompanion() {
   const faceCanvasRef = useRef<HTMLCanvasElement>(null);
   const user = useUser();
   const { current } = useAgent();
-  const [currentImage, setCurrentImage] = useState<string | null>(null);
-  const [canvasReady, setCanvasReady] = useState(false);
+  const [displayedImage, setDisplayedImage] = useState<{ url: string, caption: string } | null>(null);
 
-  // Инициализация Canvas
-  useEffect(() => {
-    if (faceCanvasRef.current) {
-      console.log('🟢 Canvas инициализирован:', faceCanvasRef.current);
-      setCanvasReady(true);
-    } else {
-      console.warn('⚠️ Canvas ref пока пустой!');
-    }
-  }, [faceCanvasRef.current]);
-
-  // Настройка конфига для Live API
-  useEffect(() => {
-    async function setupConfig() {
-      console.log('\n🚀 INITIALIZATION: Setting up config...');
-      console.log('═══════════════════════════════════════');
-
-      let sheetText = '';
-      try {
-        console.log('📊 Fetching initial sheet data...');
-        const res = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            spreadsheetId: '1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU',
-            range: 'A1:Z10',
-          }),
-        });
-
-        console.log('📥 Response status:', res.status);
-        const data = await res.json();
-
-        if (data.success && data.data.length > 0) {
-          sheetText = data.data
-            .map((row: any[], i: number) => `Row ${i + 1}: ${row.join(' | ')}`)
-            .join('\n');
-          console.log('✅ Sheet data loaded successfully!');
-        } else {
-          console.log('⚠️ No data or failed:', data);
-        }
-      } catch (err) {
-        console.error('❌ Failed to fetch sheet data:', err);
-      }
-
-      const systemInstruction = 
-        createSystemInstructions(current, user) +
-        '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
-        '- You MUST use the show_image function to display images\n' +
-        '- When you find an image URL in the spreadsheet, immediately call show_image with that URL\n' +
-        '- The show_image function is available and working\n' +
-        '- Always use complete URLs starting with http:// or https://\n\n' +
-        'Spreadsheet data:\n' + sheetText;
-
-      setConfig({
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: current.voice } },
-        },
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        tools: [
-          {
-            functionDeclarations: [
-              {
-                name: 'read_google_sheet',
-                description: 'Read data from Google Sheet.',
-                parameters: {
-                  type: 'OBJECT',
-                  properties: {
-                    spreadsheetId: { type: 'STRING' },
-                    range: { type: 'STRING' },
-                  },
-                  required: ['spreadsheetId', 'range'],
-                },
-              },
-              {
-                name: 'show_image',
-                description: 'Display image on screen (modal overlay).',
-                parameters: {
-                  type: 'OBJECT',
-                  properties: {
-                    imageUrl: { type: 'STRING' },
-                  },
-                  required: ['imageUrl'],
-                },
-              },
-            ],
-          },
-        ],
-      });
-    }
-
-    setupConfig();
-  }, [setConfig, user, current]);
-
-  // Обработка tool calls
+  // Обработка tool calls от модели
   useEffect(() => {
     if (!client || !connected) {
-      console.log('⚠️ Client or connection not ready:', { client: !!client, connected });
+      console.log('⛔ Client or connection missing:', { client, connected });
       return;
     }
 
-    console.log('✅ Tool call handler registered');
+    const handleToolCall = (toolCall: any) => {
+      console.log('✅ Tool call received:', JSON.stringify(toolCall, null, 2));
 
-    const handleToolCall = async (toolCall: any) => {
-      console.log('\n🔔 TOOL CALL RECEIVED');
-      console.log('Full toolCall object:', JSON.stringify(toolCall, null, 2));
+      // Проверяем все возможные форматы данных
+      const calls = (
+        toolCall.functionCalls ||
+        toolCall.toolCalls ||
+        toolCall.modelTurn?.parts?.map((part: any) => part.functionCall) ||
+        []
+      ).filter((fc: any) => fc); // Фильтруем undefined
 
-      if (!toolCall.functionCalls?.length) return;
-
-      const responses = await Promise.all(
-        toolCall.functionCalls.map(async (fc: any, index: number) => {
-          console.log(`🧩 Function Call #${index + 1}: ${fc.name}`);
-
+      if (calls.length > 0) {
+        calls.forEach((fc: any) => {
+          console.log('🔍 Processing function call:', fc);
           if (fc.name === 'show_image') {
-            const imageUrl = fc.args?.imageUrl || fc.args?.url;
-            console.log('🖼️ show_image called with URL:', imageUrl);
+            const { imageUrl, caption } = fc.args;
+            console.log('📸 Showing image:', { imageUrl, caption });
+            setDisplayedImage({ url: imageUrl, caption: caption || '' });
 
-            if (!imageUrl || !imageUrl.startsWith('http')) {
-              return {
-                name: fc.name,
-                id: fc.id,
-                response: { result: { success: false, error: 'Invalid image URL' } },
-              };
-            }
-
-            setCurrentImage(imageUrl);
-            console.log('✅ Image state updated');
-            return {
-              name: fc.name,
-              id: fc.id,
-              response: {
-                result: {
-                  success: true,
-                  message: `Image displayed successfully: ${imageUrl}`,
-                },
-              },
-            };
+            client.send({
+              tool_response: {
+                function_responses: [{
+                  name: 'show_image',
+                  id: fc.id || 'default-id',
+                  response: { success: true }
+                }]
+              }
+            });
+          } else {
+            console.log('⚠️ Unknown function call:', fc.name);
           }
+        });
+      } else {
+        console.log('⚠️ No function calls found in:', toolCall);
 
-          if (fc.name === 'read_google_sheet') {
-            try {
-              const { spreadsheetId, range } = fc.args;
-              const res = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ spreadsheetId, range }),
-              });
-              const data = await res.json();
-              return {
-                name: fc.name,
-                id: fc.id,
-                response: {
-                  result: { success: data.success, data: data.data },
-                },
-              };
-            } catch (err: any) {
-              return {
-                name: fc.name,
-                id: fc.id,
-                response: { result: { success: false, error: err.message } },
-              };
-            }
+        // Проверяем текст в modelTurn.parts на упоминание врача Юрія
+        const parts = toolCall.modelTurn?.parts || [];
+        parts.forEach((part: any) => {
+          if (part.text && /Dr\. Yuriy|кардіолог Юрій/i.test(part.text)) {
+            console.log('🩺 Detected Dr. Yuriy in text, triggering show_image');
+            setDisplayedImage({
+              url: 'https://i.ibb.co/GfdcvnnD/bench.jpg',
+              caption: 'Найкращий лікар — кардіолог Юрій'
+            });
+            client.send({
+              tool_response: {
+                function_responses: [{
+                  name: 'show_image',
+                  id: 'text-based-id',
+                  response: { success: true }
+                }]
+              }
+            });
           }
-
-          return null;
-        })
-      );
-
-      const validResponses = responses.filter(Boolean);
-      console.log('📤 Sending tool responses:', validResponses);
-      client.sendToolResponse({ functionResponses: validResponses });
+        });
+      }
     };
 
+    console.log('🔔 Subscribing to events');
     client.on('toolcall', handleToolCall);
-    return () => client.off('toolcall', handleToolCall);
+    client.on('toolCall', handleToolCall);
+    client.on('tool_call', handleToolCall);
+    client.on('content', handleToolCall);
+    client.on('message', (data: any) => {
+      console.log('📩 Raw message:', JSON.stringify(data, null, 2));
+      handleToolCall(data);
+    });
+
+    return () => {
+      console.log('🔔 Unsubscribing from events');
+      client.off('toolcall', handleToolCall);
+      client.off('toolCall', handleToolCall);
+      client.off('tool_call', handleToolCall);
+      client.off('content', handleToolCall);
+      client.off('message', handleToolCall);
+    };
   }, [client, connected]);
 
-  // Лог смены изображения
+  // Установка конфигурации для Live API
   useEffect(() => {
-    console.log('🖼️ IMAGE STATE CHANGED:', currentImage);
-  }, [currentImage]);
+    const tools = current.tools ? [{
+      function_declarations: current.tools.map(tool => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters
+      }))
+    }] : undefined;
+
+    console.log('🔧 Setting config with tools:', JSON.stringify(tools, null, 2));
+
+    setConfig({
+      responseModalities: [Modality.AUDIO],
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: current.voice },
+        },
+      },
+      systemInstruction: {
+        parts: [
+          {
+            text: createSystemInstructions(current, user),
+          },
+        ],
+      },
+      tools: tools,
+    });
+  }, [setConfig, user, current]);
+
+  // Отладка рендеринга
+  useEffect(() => {
+    console.log('🖼️ displayedImage updated:', displayedImage);
+  }, [displayedImage]);
 
   return (
     <>
-      {/* Модалка с изображением поверх всего */}
-      {currentImage && (
-        <>
-          <div
-            onClick={() => setCurrentImage(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0,0,0,0.85)',
-              zIndex: 9998,
-            }}
-          />
-          <div
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 9999,
-              background: '#fff',
-              borderRadius: '12px',
-              padding: '20px',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'column',
-            }}
-          >
+      <div className="keynote-companion">
+        <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
+      </div>
+
+      {/* Кнопка для РУЧНОГО ТЕСТА */}
+      <button
+        onClick={() => setDisplayedImage({
+          url: 'https://i.ibb.co/GfdcvnnD/bench.jpg',
+          caption: 'Найкращий лікар — кардіолог Юрій'
+        })}
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          padding: '10px 20px',
+          background: '#4CAF50',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          zIndex: 1000,
+          fontSize: '14px',
+          fontWeight: 600
+        }}
+      >
+        ТЕСТ
+      </button>
+
+      {/* Відображення картинки */}
+      {displayedImage && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          backdropFilter: 'blur(5px)'
+        }}>
+          <div style={{
+            position: 'relative',
+            maxWidth: '90%',
+            maxHeight: '90%',
+            background: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
+          }}>
             <button
-              onClick={() => setCurrentImage(null)}
+              onClick={() => setDisplayedImage(null)}
               style={{
                 position: 'absolute',
-                top: '10px',
-                right: '10px',
-                background: 'black',
+                top: '-12px',
+                right: '-12px',
+                background: '#ff4444',
                 color: 'white',
                 border: 'none',
                 borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                fontSize: '22px',
+                width: '40px',
+                height: '40px',
                 cursor: 'pointer',
+                fontSize: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transitionterminate
+                fontWeight: 'bold',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
               }}
             >
-              ×
+              ✕
             </button>
             <img
-              src={currentImage}
-              alt="Generated"
-              onLoad={() => console.log('✅ Image loaded:', currentImage)}
-              onError={(e) => console.error('❌ Image failed:', currentImage, e)}
+              src={displayedImage.url}
+              alt={displayedImage.caption}
+              onError={(e) => console.error('Image load error:', e, 'URL:', displayedImage.url)}
               style={{
-                width: '100%',
-                height: 'auto',
-                maxHeight: '80vh',
-                objectFit: 'contain',
-                borderRadius: '8px',
+                maxWidth: '100%',
+                maxHeight: '70vh',
+                borderRadius: '12px',
+                display: 'block'
               }}
             />
+            {displayedImage.caption && (
+              <p style={{
+                marginTop: '16px',
+                textAlign: 'center',
+                fontSize: '20px',
+                fontWeight: 600,
+                color: '#333',
+                marginBottom: 0
+              }}>{displayedImage.caption}</p>
+            )}
           </div>
-        </>
+        </div>
       )}
-
-      {/* Канвас всегда под модалкой */}
-      <div
-        className="keynote-companion"
-        style={{
-          position: 'relative',
-          width: '100%',
-          height: '100%',
-          zIndex: 1,
-        }}
-      >
-        <BasicFace
-          canvasRef={faceCanvasRef!}
-          color={current.bodyColor}
-        />
-      </div>
 
       <details className="info-overlay">
         <summary className="info-button">
@@ -284,8 +241,7 @@ export default function KeynoteCompanion() {
         </summary>
         <div className="info-text">
           <p>
-            Experimental model from Google DeepMind. Adapted for the service.
-            Speaks many languages. On iOS, disable AVR.
+            Experimental model from Google DeepMind. Adapted for the service. Speaks many languages. On iOS, disable AVR.
           </p>
         </div>
       </details>
