@@ -203,7 +203,7 @@ export default function KeynoteCompanion() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transitionterminate
+                transition: 'all 0.3s ease',
                 fontWeight: 'bold',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
               }}
