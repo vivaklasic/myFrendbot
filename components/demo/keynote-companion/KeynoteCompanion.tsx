@@ -31,8 +31,9 @@ export default function KeynoteCompanion() {
       ).filter((fc: any) => fc); // Фильтруем undefined
 
       if (calls.length > 0) {
-        calls.forEach((fc: any) => {
+        calls.forEach(async (fc: any) => {
           console.log('🔍 Processing function call:', fc);
+          
           if (fc.name === 'show_image') {
             const { imageUrl, caption } = fc.args;
             console.log('📸 Showing image:', { imageUrl, caption });
@@ -47,7 +48,61 @@ export default function KeynoteCompanion() {
                 }]
               }
             });
-          } else {
+          } 
+          else if (fc.name === 'read_google_sheet') {
+            const { spreadsheetId, range } = fc.args;
+            console.log('📊 Reading Google Sheet:', { spreadsheetId, range });
+
+            try {
+              // Виклик вашого серверного API
+              const response = await fetch('/api', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  spreadsheetId,
+                  range
+                })
+              });
+
+              const result = await response.json();
+              console.log('📊 Sheet data received:', result);
+
+              if (result.success) {
+                // Повертаємо дані моделі
+                client.send({
+                  tool_response: {
+                    function_responses: [{
+                      name: 'read_google_sheet',
+                      id: fc.id || 'sheet-id',
+                      response: {
+                        success: true,
+                        values: result.data
+                      }
+                    }]
+                  }
+                });
+              } else {
+                throw new Error(result.error || 'Failed to read spreadsheet');
+              }
+            } catch (error) {
+              console.error('❌ Error reading sheet:', error);
+              client.send({
+                tool_response: {
+                  function_responses: [{
+                    name: 'read_google_sheet',
+                    id: fc.id || 'sheet-id',
+                    response: {
+                      success: false,
+                      error: error instanceof Error ? error.message : 'Failed to read spreadsheet'
+                    }
+                  }]
+                }
+              });
+            }
+          } 
+          else {
             console.log('⚠️ Unknown function call:', fc.name);
           }
         });
