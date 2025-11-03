@@ -213,6 +213,18 @@ export default function KeynoteCompanion() {
       >
         <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
       </div>
+
+      <details className="info-overlay">
+        <summary className="info-button">
+          <span className="icon">info</span>
+        </summary>
+        <div className="info-text">
+          <p>
+            Experimental model from Google DeepMind. Adapted for the service.
+            Speaks many languages. On iOS, disable AVR.
+          </p>
+        </div>
+      </details>
     </>
   );
 }
