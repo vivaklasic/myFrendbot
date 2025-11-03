@@ -153,7 +153,7 @@ export default function KeynoteCompanion() {
       alt="Full"
       onClick={(e) => e.stopPropagation()} // чтобы клик по картинке не закрывал
       style={{
-        position: 'fixed',
+        position: 'relative',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
@@ -170,25 +170,31 @@ export default function KeynoteCompanion() {
 
     {/* кнопка × */}
     <button
-      onClick={() => setCurrentImage(null)}
-      style={{
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        background: 'rgba(0,0,0,0.7)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '50%',
-        width: '48px',
-        height: '48px',
-        fontSize: '30px',
-        cursor: 'pointer',
-        zIndex: 10000,
-        backdropFilter: 'blur(10px)',
-      }}
-    >
-      ×
-    </button>
+  onClick={() => setCurrentImage(null)}
+  style={{
+    position: 'absolute',
+    top: '12px',
+    right: '12px',
+    background: 'rgba(0,0,0,0.75)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '50%',
+    width: '44px',
+    height: '44px',
+    fontSize: '28px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    zIndex: 10001,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)', // для iPhone
+  }}
+>
+  ×
+</button>
   </>
 )}
 
