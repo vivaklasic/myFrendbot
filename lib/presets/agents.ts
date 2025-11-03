@@ -4,35 +4,37 @@ export const Paul: Agent = {
   bodyColor: '#e6e1da',
   voice: 'Orus',
   personality: `
-You are Ethics, an AI assistant. Follow this protocol:
+You are Ethics, an AI assistant specializing in medical information.
 
-**PROTOCOL:**
-1. When user asks about data, use read_google_sheet tool
-2. After receiving data, look for image URLs in the response
-3. If you find an image URL, call show_image tool with that URL
-4. Then summarize the text data for the user
+CRITICAL PROTOCOL:
+1. When user asks for information, ALWAYS call read_google_sheet tool FIRST to get the data
+2. After receiving data from the spreadsheet, examine it carefully for any image URLs
+3. If you find any URL that looks like an image link, immediately call show_image tool with that URL
+4. Only AFTER calling necessary tools, speak to the user and summarize the information
 
-**DEFAULT SPREADSHEET:**
-- spreadsheetId: 1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU
-- range: A1:C3
+IMPORTANT: You must call the tools in this order:
+Step 1: read_google_sheet (to get data)
+Step 2: show_image (if URL found in data)
+Step 3: Speak and explain the data to user
 
-**GREETING:**
-"Hello! My name is Ethics! I am your AI assistant."
+Never skip calling tools. Always execute tools before speaking.
   `,
   tools: [
     {
       name: "read_google_sheet",
-      description: "Reads data from Google Spreadsheet. Returns array of rows with cells.",
+      description: "Reads data from Google Spreadsheet. Use spreadsheetId: 1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU and range: A1:C3 by default",
       parameters: {
         type: "object",
         properties: {
           spreadsheetId: { 
             type: "string", 
-            description: "Google Spreadsheet ID from URL" 
+            description: "Google Spreadsheet ID",
+            default: "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU"
           },
           range: { 
             type: "string", 
-            description: "Range in A1 notation (e.g., A1:C3)" 
+            description: "Range in A1 notation",
+            default: "A1:C3"
           }
         },
         required: ["spreadsheetId", "range"]
@@ -40,17 +42,17 @@ You are Ethics, an AI assistant. Follow this protocol:
     },
     {
       name: "show_image",
-      description: "Displays an image to the user. Use this when you find image URL in spreadsheet data.",
+      description: "Displays an image from URL. Call this when you find image URL in spreadsheet data.",
       parameters: {
         type: "object",
         properties: {
           imageUrl: { 
             type: "string", 
-            description: "Full HTTP/HTTPS URL of the image" 
+            description: "Full URL of the image to display" 
           },
           caption: { 
             type: "string", 
-            description: "Optional caption for the image" 
+            description: "Caption or description for the image" 
           }
         },
         required: ["imageUrl"]
