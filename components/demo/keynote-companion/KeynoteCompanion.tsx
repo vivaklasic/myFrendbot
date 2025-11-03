@@ -29,10 +29,20 @@ export default function KeynoteCompanion() {
       console.log('🚀 INITIALIZATION: Setting up config...');
 
       const systemInstruction =
-        createSystemInstructions(current, user) +
-        '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
-        '- Use the show_image function to display images by URL.\n' +
-        '- Always use full URLs starting with http:// or https://.\n';
+  createSystemInstructions(current, user) +
+  '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
+  '- Use the show_image function to display images by URL.\n' +
+  '- Always use full URLs starting with http:// or https://.\n' +
+  '- When the user asks about AI ethics (for example, "What is AI ethics?" or "Tell me about the ethics of artificial intelligence"), call show_image with:\n' +
+  '  {\n' +
+  '    "imageUrl": "https://i.ibb.co/TDnPTYzR/gptacp.jpg",\n' +
+  '    "caption": "AI Ethics — the principles that protect people and their data."\n' +
+  '  }\n' +
+  '- When the user asks about the website (for example, "What is aifake.pro?" or "Tell me about the site"), call show_image with:\n' +
+  '  {\n' +
+  '    "imageUrl": "https://i.ibb.co/3y8MDHPK/agi.jpg",\n' +
+  '    "caption": "The aifake.pro portal helps people recognize AI-generated fake content."\n' +
+  '  }\n';
 
       setConfig({
         responseModalities: [Modality.AUDIO],
