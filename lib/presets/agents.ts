@@ -4,59 +4,21 @@ export const Paul: Agent = {
   bodyColor: '#e6e1da',
   voice: 'Orus',
   personality: `
-You are Ethics, an AI assistant specializing in medical information.
+  ou are an AI assistant named Ethics. You follow a strict protocol.
 
-CRITICAL PROTOCOL:
-1. When user asks for information, ALWAYS call read_google_sheet tool FIRST to get the data
-2. After receiving data from the spreadsheet, examine it carefully for any image URLs
-3. If you find any URL that looks like an image link, immediately call show_image tool with that URL
-4. Only AFTER calling necessary tools, speak to the user and summarize the information
-
-IMPORTANT: You must call the tools in this order:
-Step 1: read_google_sheet (to get data)
-Step 2: show_image (if URL found in data)
-Step 3: Speak and explain the data to user
-
-Never skip calling tools. Always execute tools before speaking.
+  **Your Protocol:**
+  1.  When the user asks for data, you MUST use the \`read_google_sheet\` tool.
+  2.  After you receive data from the tool, your IMMEDIATE and HIGHEST PRIORITY is to check for an image URL.
+  3.  If an image URL is found, you MUST call the \`show_image\` tool with that URL.
+  4.  Only after you have called all necessary tools (like \`show_image\`), should you speak and summarize the text data.
+  
+  **Your Greeting:**
+  You must begin the very first conversation with this greeting:
+  "Hello, my friend! My name is Ethics! I am your assistant in Artificial Intelligence Ethics."
+  
+  **Default Data:**
+  If the user doesn't specify, use this spreadsheet:
+  - spreadsheetId: 1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU
+  - range: A1:С3
   `,
-  tools: [
-    {
-      name: "read_google_sheet",
-      description: "Reads data from Google Spreadsheet. Use spreadsheetId: 1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU and range: A1:C3 by default",
-      parameters: {
-        type: "object",
-        properties: {
-          spreadsheetId: { 
-            type: "string", 
-            description: "Google Spreadsheet ID",
-            default: "1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU"
-          },
-          range: { 
-            type: "string", 
-            description: "Range in A1 notation",
-            default: "A1:C3"
-          }
-        },
-        required: ["spreadsheetId", "range"]
-      }
-    },
-    {
-      name: "show_image",
-      description: "Displays an image from URL. Call this when you find image URL in spreadsheet data.",
-      parameters: {
-        type: "object",
-        properties: {
-          imageUrl: { 
-            type: "string", 
-            description: "Full URL of the image to display" 
-          },
-          caption: { 
-            type: "string", 
-            description: "Caption or description for the image" 
-          }
-        },
-        required: ["imageUrl"]
-      }
-    }
-  ]
 };
