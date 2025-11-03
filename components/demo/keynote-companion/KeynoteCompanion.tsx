@@ -136,69 +136,61 @@ export default function KeynoteCompanion() {
     <>
       {/* Модальное окно с изображением */}
       {currentImage && (
-        <>
-          <div
-            onClick={() => setCurrentImage(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0,0,0,0.85)',
-              zIndex: 9998,
-            }}
-          />
-          <div
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 9999,
-              background: '#fff',
-              borderRadius: '12px',
-              padding: '20px',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'column',
-            }}
-          >
-            <button
-              onClick={() => setCurrentImage(null)}
-              style={{
-                position: 'absolute',
-                top: '10px',
-                right: '10px',
-                background: 'black',
-                color: 'white',
-                border: 'none',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                fontSize: '22px',
-                cursor: 'pointer',
-              }}
-            >
-              ×
-            </button>
-            <img
-              src={currentImage}
-              alt="Generated"
-              onLoad={() => console.log('✅ Image loaded:', currentImage)}
-              onError={(e) => console.error('❌ Image failed:', currentImage, e)}
-              style={{
-                width: '100%',
-                height: 'auto',
-                maxHeight: '80vh',
-                objectFit: 'contain',
-                borderRadius: '8px',
-              }}
-            />
-          </div>
-        </>
-      )}
+  <>
+    {/* клик вне картинки = закрыть */}
+    <div
+      onClick={() => setCurrentImage(null)}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9998,
+      }}
+    />
+
+    {/* сама картинка */}
+    <img
+      src={currentImage}
+      alt="Full"
+      onClick={(e) => e.stopPropagation()} // чтобы клик по картинке не закрывал
+      style={{
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        maxWidth: '95vw',
+        maxHeight: '95vh',
+        width: 'auto',
+        height: 'auto',
+        objectFit: 'contain',
+        borderRadius: '16px',
+        boxShadow: '0 0 60px rgba(0,0,0,0.8)',
+        zIndex: 9999,
+      }}
+    />
+
+    {/* кнопка × */}
+    <button
+      onClick={() => setCurrentImage(null)}
+      style={{
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        background: 'rgba(0,0,0,0.7)',
+        color: 'white',
+        border: 'none',
+        borderRadius: '50%',
+        width: '48px',
+        height: '48px',
+        fontSize: '30px',
+        cursor: 'pointer',
+        zIndex: 10000,
+        backdropFilter: 'blur(10px)',
+      }}
+    >
+      ×
+    </button>
+  </>
+)}
 
       {/* Canvas под модалкой */}
       <div
