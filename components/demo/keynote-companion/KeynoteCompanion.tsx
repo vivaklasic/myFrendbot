@@ -137,64 +137,67 @@ export default function KeynoteCompanion() {
       {/* Модальное окно с изображением */}
       {currentImage && (
   <>
-    {/* клик вне картинки = закрыть */}
+    {/* фон — клик = закрыть */}
     <div
       onClick={() => setCurrentImage(null)}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9998,
-      }}
+      style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
     />
 
-    {/* сама картинка */}
-    <img
-      src={currentImage}
-      alt="Full"
-      onClick={(e) => e.stopPropagation()} // чтобы клик по картинке не закрывал
+    {/* КОНТЕЙНЕР: картинка + крестик */}
+    <div
       style={{
-        position: 'relative',
+        position: 'fixed',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
         maxWidth: '95vw',
         maxHeight: '95vh',
-        width: 'auto',
-        height: 'auto',
-        objectFit: 'contain',
-        borderRadius: '16px',
-        boxShadow: '0 0 60px rgba(0,0,0,0.8)',
         zIndex: 9999,
       }}
-    />
+    >
+      {/* сама картинка */}
+      <img
+        src={currentImage}
+        alt="full"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: '95vw',
+          maxHeight: '95vh',
+          width: 'auto',
+          height: 'auto',
+          objectFit: 'contain',
+          borderRadius: '16px',
+          boxShadow: '0 0 60px rgba(0,0,0,0.8)',
+        }}
+      />
 
-    {/* кнопка × */}
-    <button
-  onClick={() => setCurrentImage(null)}
-  style={{
-    position: 'absolute',
-    top: '12px',
-    right: '12px',
-    background: 'rgba(0,0,0,0.75)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '50%',
-    width: '44px',
-    height: '44px',
-    fontSize: '28px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    zIndex: 10001,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)', // для iPhone
-  }}
->
-  ×
-</button>
+      {/* КРЕСТИК ПРИЛИП К КАРТИНКЕ */}
+      <button
+        onClick={() => setCurrentImage(null)}
+        style={{
+          position: 'absolute',
+          top: '12px',
+          right: '12px',
+          background: 'rgba(0,0,0,0.75)',
+          color: 'white',
+          border: 'none',
+          borderRadius: '50%',
+          width: '44px',
+          height: '44px',
+          fontSize: '28px',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          zIndex: 10001,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backdropFilter: 'blur(10px)',
+        }}
+      >
+        ×
+      </button>
+    </div>
   </>
 )}
 
