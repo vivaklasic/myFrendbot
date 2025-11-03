@@ -138,30 +138,6 @@ export default function KeynoteCompanion() {
         <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
       </div>
 
-      {/* Кнопка для РУЧНОГО ТЕСТА */}
-      <button
-        onClick={() => setDisplayedImage({
-          url: 'https://i.ibb.co/GfdcvnnD/bench.jpg',
-          caption: 'Найкращий лікар — кардіолог Юрій'
-        })}
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          padding: '10px 20px',
-          background: '#4CAF50',
-          color: 'white',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          zIndex: 1000,
-          fontSize: '14px',
-          fontWeight: 600
-        }}
-      >
-        ТЕСТ
-      </button>
-
       {/* Відображення картинки */}
       {displayedImage && (
         <div style={{
