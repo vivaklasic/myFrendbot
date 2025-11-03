@@ -11,49 +11,66 @@ export default function KeynoteCompanion() {
   const user = useUser();
   const { current } = useAgent();
   const [displayedImage, setDisplayedImage] = useState<{ url: string, caption: string } | null>(null);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+
+  const addLog = (msg: string) => {
+    console.log(msg);
+    setDebugLog(prev => [...prev.slice(-20), `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  };
 
   // Обробка tool calls від моделі
   useEffect(() => {
     if (!client || !connected) {
-      console.log('⛔ Client or connection missing');
+      addLog('⛔ Client or connection missing');
       return;
     }
 
-    const handleToolCall = (toolCall: any) => {
-      console.log('✅ Tool call received:', JSON.stringify(toolCall, null, 2));
+    addLog('✅ Client connected, setting up handlers');
 
+    const handleToolCall = (toolCall: any) => {
+      addLog('📥 RAW EVENT: ' + JSON.stringify(toolCall, null, 2));
+
+      // Пробуємо різні формати
       const calls = (
         toolCall.functionCalls ||
         toolCall.toolCalls ||
-        toolCall.modelTurn?.parts?.map((part: any) => part.functionCall) ||
+        (toolCall.modelTurn?.parts || []).map((part: any) => part.functionCall).filter(Boolean) ||
+        (toolCall.serverContent?.modelTurn?.parts || []).map((part: any) => part.functionCall).filter(Boolean) ||
         []
-      ).filter((fc: any) => fc);
+      ).filter(Boolean);
+
+      addLog(`🔍 Found ${calls.length} function calls`);
 
       if (calls.length > 0) {
         calls.forEach(async (fc: any) => {
-          console.log('🔍 Processing:', fc.name);
+          addLog(`🎯 FUNCTION CALL: ${fc.name}`);
+          addLog(`📝 ARGS: ${JSON.stringify(fc.args)}`);
           
           // === ЧИТАННЯ GOOGLE ТАБЛИЦІ ===
           if (fc.name === 'read_google_sheet') {
             const { spreadsheetId, range } = fc.args;
-            console.log('📊 Reading sheet:', { spreadsheetId, range });
+            addLog(`📊 Reading: ${spreadsheetId} ${range}`);
 
             try {
-              const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
+              const apiUrl = 'https://mc-pbot-google-sheets.vercel.app/api';
+              addLog(`🌐 Calling API: ${apiUrl}`);
+
+              const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ spreadsheetId, range })
               });
+
+              addLog(`📡 Response status: ${response.status}`);
 
               if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
               }
 
               const result = await response.json();
-              console.log('✅ Data from sheet:', result.data);
+              addLog(`✅ Data received: ${JSON.stringify(result.data)}`);
 
               if (result.success) {
-                // Повертаємо дані моделі
                 client.send({
                   tool_response: {
                     function_responses: [{
@@ -66,11 +83,12 @@ export default function KeynoteCompanion() {
                     }]
                   }
                 });
+                addLog('✉️ Sent response to model');
               } else {
-                throw new Error(result.error || 'Failed to read');
+                throw new Error(result.error || 'Failed');
               }
             } catch (error) {
-              console.error('❌ Error:', error);
+              addLog(`❌ ERROR: ${error}`);
               client.send({
                 tool_response: {
                   function_responses: [{
@@ -88,7 +106,7 @@ export default function KeynoteCompanion() {
           // === ПОКАЗ КАРТИНКИ ===
           else if (fc.name === 'show_image') {
             const { imageUrl, caption } = fc.args;
-            console.log('📸 Showing image:', imageUrl);
+            addLog(`📸 SHOWING IMAGE: ${imageUrl}`);
             
             setDisplayedImage({ url: imageUrl, caption: caption || '' });
 
@@ -101,39 +119,52 @@ export default function KeynoteCompanion() {
                 }]
               }
             });
+            addLog('✅ Image displayed');
+          } else {
+            addLog(`⚠️ Unknown function: ${fc.name}`);
           }
         });
+      } else {
+        addLog('⚠️ No function calls found in event');
       }
     };
 
-    console.log('🔔 Subscribing to events');
-    client.on('toolcall', handleToolCall);
-    client.on('toolCall', handleToolCall);
-    client.on('tool_call', handleToolCall);
-    client.on('content', handleToolCall);
-    client.on('message', handleToolCall);
+    // Підписуємось на ВСІ можливі події
+    const events = ['toolcall', 'toolCall', 'tool_call', 'content', 'message', 
+                    'turncomplete', 'turn_complete', 'serverContent'];
+    
+    events.forEach(event => {
+      client.on(event, (data: any) => {
+        addLog(`📣 Event: ${event}`);
+        handleToolCall(data);
+      });
+    });
+
+    addLog('🔔 Subscribed to all events');
 
     return () => {
-      console.log('🔔 Unsubscribing');
-      client.off('toolcall', handleToolCall);
-      client.off('toolCall', handleToolCall);
-      client.off('tool_call', handleToolCall);
-      client.off('content', handleToolCall);
-      client.off('message', handleToolCall);
+      events.forEach(event => client.off(event, handleToolCall));
+      addLog('🔕 Unsubscribed');
     };
   }, [client, connected]);
 
   // Конфігурація Live API
   useEffect(() => {
-    const tools = current.tools ? [{
+    if (!current.tools) {
+      addLog('⚠️ No tools defined in agent config!');
+      return;
+    }
+
+    const tools = [{
       function_declarations: current.tools.map(tool => ({
         name: tool.name,
         description: tool.description,
         parameters: tool.parameters
       }))
-    }] : undefined;
+    }];
 
-    console.log('🔧 Config with tools:', JSON.stringify(tools, null, 2));
+    addLog(`🔧 Setting config with ${current.tools.length} tools`);
+    addLog(`📋 Tools: ${current.tools.map(t => t.name).join(', ')}`);
 
     setConfig({
       responseModalities: [Modality.AUDIO],
@@ -147,12 +178,39 @@ export default function KeynoteCompanion() {
       },
       tools: tools,
     });
+
+    addLog('✅ Config set');
   }, [setConfig, user, current]);
 
   return (
     <>
       <div className="keynote-companion">
         <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
+      </div>
+
+      {/* DEBUG CONSOLE */}
+      <div style={{
+        position: 'fixed',
+        bottom: 10,
+        left: 10,
+        right: 10,
+        maxHeight: '200px',
+        background: 'rgba(0, 0, 0, 0.9)',
+        color: '#0f0',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        padding: '10px',
+        borderRadius: '8px',
+        overflow: 'auto',
+        zIndex: 10000,
+        border: '1px solid #0f0'
+      }}>
+        <div style={{ marginBottom: '5px', color: '#ff0' }}>
+          🐛 DEBUG LOG (останні 20 подій):
+        </div>
+        {debugLog.map((log, i) => (
+          <div key={i} style={{ marginBottom: '2px' }}>{log}</div>
+        ))}
       </div>
 
       {/* Відображення картинки */}
