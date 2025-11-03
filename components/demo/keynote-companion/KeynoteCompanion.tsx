@@ -23,47 +23,16 @@ export default function KeynoteCompanion() {
     }
   }, [faceCanvasRef.current]);
 
-  // Настройка конфига для Live API
+  // Настройка конфига для Live API (только показ изображений)
   useEffect(() => {
     async function setupConfig() {
-      console.log('\n🚀 INITIALIZATION: Setting up config...');
-      console.log('═══════════════════════════════════════');
+      console.log('🚀 INITIALIZATION: Setting up config...');
 
-      let sheetText = '';
-      try {
-        console.log('📊 Fetching initial sheet data...');
-        const res = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            spreadsheetId: '1k6D1x8D36OVPojdwPb9jDzwmWC92vdi9qJTqO-E4szU',
-            range: 'A1:Z10',
-          }),
-        });
-
-        console.log('📥 Response status:', res.status);
-        const data = await res.json();
-
-        if (data.success && data.data.length > 0) {
-          sheetText = data.data
-            .map((row: any[], i: number) => `Row ${i + 1}: ${row.join(' | ')}`)
-            .join('\n');
-          console.log('✅ Sheet data loaded successfully!');
-        } else {
-          console.log('⚠️ No data or failed:', data);
-        }
-      } catch (err) {
-        console.error('❌ Failed to fetch sheet data:', err);
-      }
-
-      const systemInstruction = 
+      const systemInstruction =
         createSystemInstructions(current, user) +
         '\n\n**IMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:**\n' +
-        '- You MUST use the show_image function to display images\n' +
-        '- When you find an image URL in the spreadsheet, immediately call show_image with that URL\n' +
-        '- The show_image function is available and working\n' +
-        '- Always use complete URLs starting with http:// or https://\n\n' +
-        'Spreadsheet data:\n' + sheetText;
+        '- Use the show_image function to display images by URL.\n' +
+        '- Always use full URLs starting with http:// or https://.\n';
 
       setConfig({
         responseModalities: [Modality.AUDIO],
@@ -74,18 +43,6 @@ export default function KeynoteCompanion() {
         tools: [
           {
             functionDeclarations: [
-              {
-                name: 'read_google_sheet',
-                description: 'Read data from Google Sheet.',
-                parameters: {
-                  type: 'OBJECT',
-                  properties: {
-                    spreadsheetId: { type: 'STRING' },
-                    range: { type: 'STRING' },
-                  },
-                  required: ['spreadsheetId', 'range'],
-                },
-              },
               {
                 name: 'show_image',
                 description: 'Display image on screen (modal overlay).',
@@ -106,19 +63,16 @@ export default function KeynoteCompanion() {
     setupConfig();
   }, [setConfig, user, current]);
 
-  // Обработка tool calls
+  // Обработка вызова функции show_image
   useEffect(() => {
     if (!client || !connected) {
       console.log('⚠️ Client or connection not ready:', { client: !!client, connected });
       return;
     }
 
-    console.log('✅ Tool call handler registered');
+    console.log('✅ Tool call handler registered (images only)');
 
     const handleToolCall = async (toolCall: any) => {
-      console.log('\n🔔 TOOL CALL RECEIVED');
-      console.log('Full toolCall object:', JSON.stringify(toolCall, null, 2));
-
       if (!toolCall.functionCalls?.length) return;
 
       const responses = await Promise.all(
@@ -151,37 +105,11 @@ export default function KeynoteCompanion() {
             };
           }
 
-          if (fc.name === 'read_google_sheet') {
-            try {
-              const { spreadsheetId, range } = fc.args;
-              const res = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ spreadsheetId, range }),
-              });
-              const data = await res.json();
-              return {
-                name: fc.name,
-                id: fc.id,
-                response: {
-                  result: { success: data.success, data: data.data },
-                },
-              };
-            } catch (err: any) {
-              return {
-                name: fc.name,
-                id: fc.id,
-                response: { result: { success: false, error: err.message } },
-              };
-            }
-          }
-
           return null;
         })
       );
 
       const validResponses = responses.filter(Boolean);
-      console.log('📤 Sending tool responses:', validResponses);
       client.sendToolResponse({ functionResponses: validResponses });
     };
 
@@ -196,7 +124,7 @@ export default function KeynoteCompanion() {
 
   return (
     <>
-      {/* Модалка с изображением поверх всего */}
+      {/* Модальное окно с изображением */}
       {currentImage && (
         <>
           <div
@@ -262,7 +190,7 @@ export default function KeynoteCompanion() {
         </>
       )}
 
-      {/* Канвас всегда под модалкой */}
+      {/* Canvas под модалкой */}
       <div
         className="keynote-companion"
         style={{
@@ -272,23 +200,8 @@ export default function KeynoteCompanion() {
           zIndex: 1,
         }}
       >
-        <BasicFace
-          canvasRef={faceCanvasRef!}
-          color={current.bodyColor}
-        />
+        <BasicFace canvasRef={faceCanvasRef!} color={current.bodyColor} />
       </div>
-
-      <details className="info-overlay">
-        <summary className="info-button">
-          <span className="icon">info</span>
-        </summary>
-        <div className="info-text">
-          <p>
-            Experimental model from Google DeepMind. Adapted for the service.
-            Speaks many languages. On iOS, disable AVR.
-          </p>
-        </div>
-      </details>
     </>
   );
 }
