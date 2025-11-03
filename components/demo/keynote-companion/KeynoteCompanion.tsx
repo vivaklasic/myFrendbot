@@ -12,62 +12,45 @@ export default function KeynoteCompanion() {
   const { current } = useAgent();
   const [displayedImage, setDisplayedImage] = useState<{ url: string, caption: string } | null>(null);
 
-  // Обработка tool calls от модели
+  // Обробка tool calls від моделі
   useEffect(() => {
     if (!client || !connected) {
-      console.log('⛔ Client or connection missing:', { client, connected });
+      console.log('⛔ Client or connection missing');
       return;
     }
 
     const handleToolCall = (toolCall: any) => {
       console.log('✅ Tool call received:', JSON.stringify(toolCall, null, 2));
 
-      // Проверяем все возможные форматы данных
       const calls = (
         toolCall.functionCalls ||
         toolCall.toolCalls ||
         toolCall.modelTurn?.parts?.map((part: any) => part.functionCall) ||
         []
-      ).filter((fc: any) => fc); // Фильтруем undefined
+      ).filter((fc: any) => fc);
 
       if (calls.length > 0) {
         calls.forEach(async (fc: any) => {
-          console.log('🔍 Processing function call:', fc);
+          console.log('🔍 Processing:', fc.name);
           
-          if (fc.name === 'show_image') {
-            const { imageUrl, caption } = fc.args;
-            console.log('📸 Showing image:', { imageUrl, caption });
-            setDisplayedImage({ url: imageUrl, caption: caption || '' });
-
-            client.send({
-              tool_response: {
-                function_responses: [{
-                  name: 'show_image',
-                  id: fc.id || 'default-id',
-                  response: { success: true }
-                }]
-              }
-            });
-          } 
-          else if (fc.name === 'read_google_sheet') {
+          // === ЧИТАННЯ GOOGLE ТАБЛИЦІ ===
+          if (fc.name === 'read_google_sheet') {
             const { spreadsheetId, range } = fc.args;
-            console.log('📊 Reading Google Sheet:', { spreadsheetId, range });
+            console.log('📊 Reading sheet:', { spreadsheetId, range });
 
             try {
-              // Виклик вашого серверного API
-              const response = await fetch('/api', {
+              const response = await fetch('https://mc-pbot-google-sheets.vercel.app/api', {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  spreadsheetId,
-                  range
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spreadsheetId, range })
               });
 
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+              }
+
               const result = await response.json();
-              console.log('📊 Sheet data received:', result);
+              console.log('✅ Data from sheet:', result.data);
 
               if (result.success) {
                 // Повертаємо дані моделі
@@ -84,10 +67,10 @@ export default function KeynoteCompanion() {
                   }
                 });
               } else {
-                throw new Error(result.error || 'Failed to read spreadsheet');
+                throw new Error(result.error || 'Failed to read');
               }
             } catch (error) {
-              console.error('❌ Error reading sheet:', error);
+              console.error('❌ Error:', error);
               client.send({
                 tool_response: {
                   function_responses: [{
@@ -95,34 +78,25 @@ export default function KeynoteCompanion() {
                     id: fc.id || 'sheet-id',
                     response: {
                       success: false,
-                      error: error instanceof Error ? error.message : 'Failed to read spreadsheet'
+                      error: error instanceof Error ? error.message : 'Error'
                     }
                   }]
                 }
               });
             }
           } 
-          else {
-            console.log('⚠️ Unknown function call:', fc.name);
-          }
-        });
-      } else {
-        console.log('⚠️ No function calls found in:', toolCall);
+          // === ПОКАЗ КАРТИНКИ ===
+          else if (fc.name === 'show_image') {
+            const { imageUrl, caption } = fc.args;
+            console.log('📸 Showing image:', imageUrl);
+            
+            setDisplayedImage({ url: imageUrl, caption: caption || '' });
 
-        // Проверяем текст в modelTurn.parts на упоминание врача Юрія
-        const parts = toolCall.modelTurn?.parts || [];
-        parts.forEach((part: any) => {
-          if (part.text && /Dr\. Yuriy|кардіолог Юрій/i.test(part.text)) {
-            console.log('🩺 Detected Dr. Yuriy in text, triggering show_image');
-            setDisplayedImage({
-              url: 'https://i.ibb.co/GfdcvnnD/bench.jpg',
-              caption: 'Найкращий лікар — кардіолог Юрій'
-            });
             client.send({
               tool_response: {
                 function_responses: [{
                   name: 'show_image',
-                  id: 'text-based-id',
+                  id: fc.id || 'img-id',
                   response: { success: true }
                 }]
               }
@@ -137,13 +111,10 @@ export default function KeynoteCompanion() {
     client.on('toolCall', handleToolCall);
     client.on('tool_call', handleToolCall);
     client.on('content', handleToolCall);
-    client.on('message', (data: any) => {
-      console.log('📩 Raw message:', JSON.stringify(data, null, 2));
-      handleToolCall(data);
-    });
+    client.on('message', handleToolCall);
 
     return () => {
-      console.log('🔔 Unsubscribing from events');
+      console.log('🔔 Unsubscribing');
       client.off('toolcall', handleToolCall);
       client.off('toolCall', handleToolCall);
       client.off('tool_call', handleToolCall);
@@ -152,7 +123,7 @@ export default function KeynoteCompanion() {
     };
   }, [client, connected]);
 
-  // Установка конфигурации для Live API
+  // Конфігурація Live API
   useEffect(() => {
     const tools = current.tools ? [{
       function_declarations: current.tools.map(tool => ({
@@ -162,7 +133,7 @@ export default function KeynoteCompanion() {
       }))
     }] : undefined;
 
-    console.log('🔧 Setting config with tools:', JSON.stringify(tools, null, 2));
+    console.log('🔧 Config with tools:', JSON.stringify(tools, null, 2));
 
     setConfig({
       responseModalities: [Modality.AUDIO],
@@ -172,20 +143,11 @@ export default function KeynoteCompanion() {
         },
       },
       systemInstruction: {
-        parts: [
-          {
-            text: createSystemInstructions(current, user),
-          },
-        ],
+        parts: [{ text: createSystemInstructions(current, user) }],
       },
       tools: tools,
     });
   }, [setConfig, user, current]);
-
-  // Отладка рендеринга
-  useEffect(() => {
-    console.log('🖼️ displayedImage updated:', displayedImage);
-  }, [displayedImage]);
 
   return (
     <>
@@ -234,7 +196,6 @@ export default function KeynoteCompanion() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.3s ease',
                 fontWeight: 'bold',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
               }}
@@ -244,7 +205,6 @@ export default function KeynoteCompanion() {
             <img
               src={displayedImage.url}
               alt={displayedImage.caption}
-              onError={(e) => console.error('Image load error:', e, 'URL:', displayedImage.url)}
               style={{
                 maxWidth: '100%',
                 maxHeight: '70vh',
@@ -271,9 +231,7 @@ export default function KeynoteCompanion() {
           <span className="icon">info</span>
         </summary>
         <div className="info-text">
-          <p>
-            Experimental model from Google DeepMind. Adapted for the service. Speaks many languages. On iOS, disable AVR.
-          </p>
+          <p>Experimental model from Google DeepMind.</p>
         </div>
       </details>
     </>
