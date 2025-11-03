@@ -1,3 +1,14 @@
+export const createNewAgent = (properties?: Partial<Agent>): Agent => {
+  return {
+    id: Math.random().toString(36).substring(2, 15),
+    name: '',
+    personality: '',
+    bodyColor: AGENT_COLORS[Math.floor(Math.random() * AGENT_COLORS.length)],
+    voice: Math.random() > 0.5 ? 'Charon' : 'Aoede',
+    ...properties,
+  };
+};
+
 export const Paul: Agent = {
   id: 'guardian-ai',
   name: 'Ethics',
