@@ -28,21 +28,7 @@ export default function KeynoteCompanion() {
     async function setupConfig() {
       console.log('🚀 INITIALIZATION: Setting up config...');
 
-      const systemInstruction =
-  createSystemInstructions(current, user) +
-  '\n\nIMPORTANT INSTRUCTIONS FOR IMAGE DISPLAY:\n' +
-'- Use the show_image function to display images by URL.\n' +
-'- Always use full URLs starting with http:// or https://.\n' +
-'- When first explaining the ethics of artificial intelligence, call show_image with:\n' +
-'  {\n' +
-'    "imageUrl": "https://i.ibb.co/zhvqcRj2/Etthics1picture.png",\n' +
-'    "caption": "AI Ethics — the principles that protect people and their data."\n' +
-'  }\n' +
-'- When talking about the aifake.pro website, call show_image with:\n' +
-'  {\n' +
-'    "imageUrl": "https://i.ibb.co/nswSZXv5/Etthics3picture.png",\n' +
-'    "caption": "The aifake.pro portal helps people recognize AI-generated fake content."\n' +
-'  }\n';
+      const systemInstruction = createSystemInstructions(current, user)
 
       setConfig({
         responseModalities: [Modality.AUDIO],
