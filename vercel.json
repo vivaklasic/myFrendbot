@@ -5,7 +5,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://stop-neurodeception.web.app https://aifake.pro"
+          "value": "frame-ancestors 'self' https://aistopfake.com"
         }
       ]
     }
